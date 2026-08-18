@@ -1,0 +1,5 @@
+DONT ADD THESE YET
+
+- search tool to search a task accross all boards
+- it should work on all browsers on desktop
+- dark mode

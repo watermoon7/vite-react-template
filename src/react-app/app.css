@@ -1,0 +1,852 @@
+/* ---------- Tokens ----------
+   :root holds the light theme. The dark values are duplicated in the two blocks below
+   because plain CSS cannot gate custom properties on a media query and a selector at
+   once — KEEP THE TWO DARK BLOCKS IN SYNC. Once the support floor passes Safari 17.5
+   both collapse into light-dark() calls on this block alone. */
+:root {
+	--bg: #ffffff;
+	--surface-1: #f7f7f7;
+	--surface-2: #f2f2f2;
+	/* Interaction feedback. Separate from the surfaces because hover must move away from
+	   --bg (darker in light, lighter in dark) while recessed chrome moves the other way. */
+	--hover: #f2f2f2;
+	--border: #e3e3e3;
+	--border-strong: #c9c9c9;
+	--text: #171717;
+	--text-muted: #6f6f6f;
+	--accent: #1a56db;
+	--accent-soft: #e8effc;
+	--danger: #b42318;
+	--danger-soft: #fdecea;
+	--ok: #16a34a;
+	--prio-low: #6b7280;
+	--prio-medium: #b45309;
+	--prio-high: #b42318;
+	/* Solid controls (primary button, selected segment) invert the surface. Reusing
+	   --text as a background would make them white-on-white in the dark theme. */
+	--inverse-bg: #171717;
+	--inverse-bg-hover: #000000;
+	--inverse-fg: #ffffff;
+	--shadow-color: rgba(0, 0, 0, 0.12);
+	--app-scale: 1;
+	--radius: 3px;
+	--sidebar-width: 232px;
+	/* The sidebar widens while a search query is active; task text needs the room. */
+	--sidebar-width-search: 320px;
+	--editor-width: 380px;
+	--font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	color-scheme: light;
+}
+
+/* Dark theme, following the system — unless Settings has forced light.
+   KEEP IN SYNC with :root[data-theme="dark"] below. */
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) {
+		--bg: #1b1b1b;
+		--surface-1: #151515;
+		--surface-2: #111111;
+		--hover: #2a2a2a;
+		--border: #333333;
+		--border-strong: #4d4d4d;
+		--text: #ececec;
+		--text-muted: #a6a6a6;
+		--accent: #7aa2f7;
+		--accent-soft: #1d2b47;
+		--danger: #f28b82;
+		--danger-soft: #3a1f1d;
+		--ok: #4ade80;
+		--prio-low: #9ca3af;
+		--prio-medium: #e0a458;
+		--prio-high: #f28b82;
+		--inverse-bg: #ececec;
+		--inverse-bg-hover: #ffffff;
+		--inverse-fg: #121212;
+		--shadow-color: rgba(0, 0, 0, 0.55);
+		color-scheme: dark;
+	}
+}
+
+/* Dark theme forced from Settings, whatever the system says. This ties on specificity
+   with the media-query block above, so source order decides and this one wins.
+   KEEP IN SYNC with the block above. */
+:root[data-theme="dark"] {
+	--bg: #1b1b1b;
+	--surface-1: #151515;
+	--surface-2: #111111;
+	--hover: #2a2a2a;
+	--border: #333333;
+	--border-strong: #4d4d4d;
+	--text: #ececec;
+	--text-muted: #a6a6a6;
+	--accent: #7aa2f7;
+	--accent-soft: #1d2b47;
+	--danger: #f28b82;
+	--danger-soft: #3a1f1d;
+	--ok: #4ade80;
+	--prio-low: #9ca3af;
+	--prio-medium: #e0a458;
+	--prio-high: #f28b82;
+	--inverse-bg: #ececec;
+	--inverse-bg-hover: #ffffff;
+	--inverse-fg: #121212;
+	--shadow-color: rgba(0, 0, 0, 0.55);
+	color-scheme: dark;
+}
+
+/* ---------- Reset ---------- */
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+html,
+body,
+#root {
+	height: 100%;
+	margin: 0;
+}
+/* Interface scale: scales the whole app like the browser's own zoom. Percentage
+   heights resolve against the zoomed box, so height: 100% still fills the viewport. */
+#root {
+	zoom: var(--app-scale);
+}
+body {
+	font-family: var(--font);
+	font-size: 14px;
+	line-height: 1.45;
+	color: var(--text);
+	background: var(--bg);
+	-webkit-font-smoothing: antialiased;
+}
+button,
+input,
+textarea {
+	font: inherit;
+	color: inherit;
+}
+button {
+	cursor: pointer;
+	background: none;
+	border: 0;
+	padding: 0;
+}
+a {
+	color: inherit;
+	text-decoration: none;
+}
+h1,
+h2,
+p {
+	margin: 0;
+}
+ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/* ---------- Utilities ---------- */
+.muted {
+	color: var(--text-muted);
+}
+.small {
+	font-size: 12.5px;
+}
+.row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.spacer {
+	flex: 1;
+}
+.screen-center {
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+}
+.empty {
+	text-align: center;
+	line-height: 1.8;
+}
+
+/* ---------- Controls ---------- */
+.btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 30px;
+	padding: 0 11px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	background: var(--bg);
+	font-weight: 500;
+	white-space: nowrap;
+}
+.btn:hover {
+	background: var(--hover);
+}
+.btn:focus-visible,
+.icon-btn:focus-visible,
+.seg-btn:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+.btn-primary {
+	background: var(--inverse-bg);
+	border-color: var(--inverse-bg);
+	color: var(--inverse-fg);
+}
+.btn-primary:hover {
+	background: var(--inverse-bg-hover);
+}
+.btn-ghost {
+	border-color: transparent;
+	background: transparent;
+	color: var(--text-muted);
+	padding: 0 8px;
+}
+.btn-ghost:hover {
+	background: var(--hover);
+	color: var(--text);
+}
+.btn-ghost.danger:hover {
+	color: var(--danger);
+	background: var(--danger-soft);
+}
+.btn-danger {
+	color: var(--danger);
+	border-color: var(--border-strong);
+}
+.btn-danger:hover {
+	background: var(--danger-soft);
+	border-color: var(--danger);
+}
+.btn-block {
+	width: 100%;
+	justify-content: center;
+	height: 34px;
+}
+.icon-btn {
+	width: 26px;
+	height: 26px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius);
+	color: var(--text-muted);
+	font-size: 18px;
+	line-height: 1;
+}
+.icon-btn:hover {
+	background: var(--hover);
+	color: var(--text);
+}
+.input {
+	width: 100%;
+	padding: 7px 9px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	background: var(--bg);
+	resize: vertical;
+}
+.input:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 2px var(--accent-soft);
+}
+input[type="date"].input {
+	width: auto;
+	/* Firefox and Safari size this control to its content and Chrome does not; a floor keeps the three consistent. */
+	min-width: 150px;
+	font-variant-numeric: tabular-nums;
+}
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+.label {
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.seg {
+	display: inline-flex;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	overflow: hidden;
+	align-self: flex-start;
+}
+.seg-btn {
+	padding: 5px 12px;
+	border-right: 1px solid var(--border-strong);
+	background: var(--bg);
+	color: var(--text-muted);
+	font-weight: 500;
+}
+.seg-btn:last-child {
+	border-right: 0;
+}
+.seg-btn:hover {
+	background: var(--hover);
+	color: var(--text);
+}
+.seg-btn.on {
+	background: var(--inverse-bg);
+	color: var(--inverse-fg);
+}
+.stepper {
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	overflow: hidden;
+}
+.stepper-btn {
+	width: 32px;
+	height: 30px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 17px;
+	line-height: 1;
+	background: var(--bg);
+}
+.stepper-btn:hover:not(:disabled) {
+	background: var(--hover);
+}
+.stepper-btn:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: -2px;
+}
+.stepper-value {
+	min-width: 58px;
+	height: 30px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 6px;
+	border-left: 1px solid var(--border-strong);
+	border-right: 1px solid var(--border-strong);
+	font-variant-numeric: tabular-nums;
+}
+.btn:disabled,
+.stepper-btn:disabled {
+	color: var(--border-strong);
+	cursor: default;
+}
+
+.save-status {
+	font-size: 12px;
+	color: var(--text-muted);
+	min-width: 56px;
+	text-align: right;
+}
+
+/* ---------- Layout ---------- */
+.app {
+	display: grid;
+	grid-template-columns: var(--sidebar-width) 1fr;
+	height: 100%;
+}
+.main {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+}
+.banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 8px 20px;
+	background: var(--danger-soft);
+	color: var(--danger);
+	border-bottom: 1px solid var(--danger);
+}
+
+/* Widen the sidebar while searching — task text needs more room than a board name.
+   Deliberately not transitioned: animating the grid reflows the board mid-drag. */
+.app:has(.search-input:not(:placeholder-shown)) {
+	grid-template-columns: var(--sidebar-width-search) 1fr;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+	display: flex;
+	flex-direction: column;
+	background: var(--surface-1);
+	border-right: 1px solid var(--border);
+	overflow-y: auto;
+	padding: 14px 10px;
+}
+.sidebar-brand {
+	font-weight: 700;
+	font-size: 15px;
+	letter-spacing: -0.01em;
+	padding: 2px 8px 16px;
+}
+.sidebar-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 8px 4px;
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.sidebar-heading .icon-btn {
+	width: 22px;
+	height: 22px;
+	font-size: 16px;
+}
+.nav-item {
+	display: flex;
+	align-items: center;
+	border-radius: var(--radius);
+	color: var(--text);
+}
+.nav-item:hover {
+	background: var(--hover);
+}
+.nav-item.active {
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 500;
+}
+.nav-link {
+	flex: 1;
+	min-width: 0;
+	display: block;
+	padding: 6px 8px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.nav-delete {
+	width: 24px;
+	height: 24px;
+	margin-right: 4px;
+	border-radius: var(--radius);
+	color: var(--text-muted);
+	font-size: 16px;
+	line-height: 1;
+	opacity: 0;
+}
+.nav-item:hover .nav-delete,
+.nav-delete:focus-visible {
+	opacity: 1;
+}
+.nav-delete:hover {
+	background: var(--danger-soft);
+	color: var(--danger);
+}
+.nav-input {
+	width: 100%;
+	padding: 5px 8px;
+	border: 1px solid var(--accent);
+	border-radius: var(--radius);
+	background: var(--bg);
+	outline: none;
+}
+.nav-empty {
+	padding: 6px 8px;
+	color: var(--text-muted);
+	font-size: 13px;
+}
+.sidebar-footer {
+	margin-top: auto;
+	padding-top: 12px;
+}
+.sidebar-status {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 10px 8px 2px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+.status-dot {
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--border-strong);
+}
+.status-dot.on {
+	background: var(--ok);
+}
+
+.sidebar-search {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 0 8px 4px;
+}
+.search-input {
+	/* Safari styles a search field as a rounded pill and ignores the padding otherwise. */
+	-webkit-appearance: none;
+	appearance: none;
+}
+.search-input::-webkit-search-cancel-button {
+	-webkit-appearance: none; /* the × button next to it is ours */
+}
+.search-clear {
+	flex-shrink: 0;
+}
+.search-summary {
+	padding: 8px 8px 0;
+}
+/* Result text wraps to two lines instead of the single ellipsised line a nav link uses. */
+.nav-link.search-result {
+	white-space: normal;
+	text-overflow: clip;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	overflow-wrap: anywhere;
+	line-height: 1.35;
+}
+.search-in-notes {
+	color: var(--text-muted);
+}
+
+/* ---------- Board ---------- */
+.board-header,
+.page-header {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	height: 54px;
+	padding: 0 20px;
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+.board-title,
+.page-title {
+	font-size: 16px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.board-title {
+	cursor: text;
+	padding: 2px 6px;
+	margin-left: -6px;
+	border-radius: var(--radius);
+}
+.board-title:hover {
+	background: var(--hover);
+}
+.board-title-input {
+	font-size: 16px;
+	font-weight: 600;
+	padding: 2px 6px;
+	margin-left: -6px;
+	border: 1px solid var(--accent);
+	border-radius: var(--radius);
+	outline: none;
+	min-width: 240px;
+}
+.board-body {
+	flex: 1;
+	display: flex;
+	min-height: 0;
+}
+.columns {
+	flex: 1;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(220px, 1fr));
+	gap: 14px;
+	padding: 16px 20px 20px;
+	/* Only the columns scroll vertically. A vertical scroller here too would nest two
+	   auto-scroll containers, which @hello-pangea/dnd handles inconsistently across engines. */
+	overflow-x: auto;
+	overflow-y: hidden;
+	min-width: 0;
+}
+.column {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	min-width: 0;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+.column-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 9px 12px;
+	font-size: 12px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--border);
+}
+.column-header .count {
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+}
+.column-list {
+	flex: 1;
+	overflow-y: auto;
+	overscroll-behavior: contain; /* stops scroll chaining into the page in Safari and Firefox */
+	padding: 8px 8px 40px;
+	transition: background-color 120ms;
+}
+.column-list.over {
+	background: var(--accent-soft);
+}
+.card {
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	padding: 9px 11px 8px;
+	margin-bottom: 7px;
+	cursor: pointer;
+	-webkit-user-select: none; /* Safari shipped the unprefixed property only in 17.0 */
+	user-select: none;
+}
+.card:hover {
+	border-color: var(--border-strong);
+}
+.card.selected {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 1px var(--accent);
+}
+.card.dragging {
+	box-shadow: 0 6px 18px var(--shadow-color);
+	border-color: var(--border-strong);
+}
+.card-title {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	display: -webkit-box;
+	-webkit-line-clamp: 4;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+.card-title.placeholder {
+	color: var(--text-muted);
+	font-style: italic;
+}
+.card-meta {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	margin-top: 6px;
+	font-size: 12px;
+	color: var(--text-muted);
+}
+.card-meta:empty {
+	display: none;
+}
+.tag {
+	font-weight: 600;
+	font-size: 11px;
+	letter-spacing: 0.03em;
+	text-transform: uppercase;
+}
+.prio-low {
+	color: var(--prio-low);
+}
+.prio-medium {
+	color: var(--prio-medium);
+}
+.prio-high {
+	color: var(--prio-high);
+}
+.card-due.overdue {
+	color: var(--danger);
+	font-weight: 500;
+}
+.card-notes {
+	font-size: 13px;
+	line-height: 1;
+}
+
+/* ---------- Task editor ---------- */
+.editor {
+	width: var(--editor-width);
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	border-left: 1px solid var(--border);
+	background: var(--bg);
+	min-height: 0;
+}
+.editor-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 44px;
+	padding: 0 12px 0 16px;
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+.editor-title {
+	font-weight: 600;
+	flex: 1;
+}
+.editor-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+.editor-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 10px 16px;
+	border-top: 1px solid var(--border);
+	flex-shrink: 0;
+}
+
+/* ---------- Pages (notes, settings) ---------- */
+.page {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+.page-body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 20px;
+	max-width: 900px;
+}
+.notes-editor {
+	flex: 1;
+	width: 100%;
+	border: 0;
+	resize: none;
+	padding: 20px 24px;
+	font-size: 15px;
+	line-height: 1.6;
+	outline: none;
+	background: var(--bg);
+}
+.settings-section {
+	padding-bottom: 24px;
+	margin-bottom: 24px;
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	align-items: flex-start;
+}
+.settings-section:last-child {
+	border-bottom: 0;
+}
+.section-title {
+	font-size: 14px;
+	font-weight: 600;
+}
+.notice {
+	padding: 8px 10px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	border-radius: var(--radius);
+}
+.table-wrap {
+	width: 100%;
+	overflow-x: auto;
+}
+.table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+.table th,
+.table td {
+	text-align: left;
+	padding: 7px 10px;
+	border-bottom: 1px solid var(--border);
+	white-space: nowrap;
+}
+.table th {
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+.table .num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+.table .actions {
+	text-align: right;
+}
+.table .actions .btn {
+	height: 26px;
+}
+
+/* ---------- Login ---------- */
+.login {
+	width: 320px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 28px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+}
+.login input {
+	width: 100%;
+	padding: 8px 10px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+}
+.login input:focus {
+	outline: none;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.login-title {
+	font-size: 18px;
+	font-weight: 700;
+	margin-bottom: 4px;
+}
+.form-error {
+	color: var(--danger);
+	font-size: 13px;
+}
+
+/* ---------- Narrow screens ---------- */
+@media (max-width: 900px) {
+	.columns {
+		grid-template-columns: repeat(3, minmax(220px, 1fr));
+	}
+	.editor {
+		position: absolute;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		width: min(var(--editor-width), 100vw);
+		box-shadow: -8px 0 24px var(--shadow-color);
+	}
+	.board-body {
+		position: relative;
+	}
+}
