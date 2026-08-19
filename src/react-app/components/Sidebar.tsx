@@ -1,6 +1,6 @@
 /** Left panel: task search, boards and chats (channels; create/rename/delete/switch), calendar, settings, connection status. */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { Board, Channel, Message, Task, UserId } from "../../shared/types";
+import { DONE_COLUMN, type Board, type Channel, type Message, type Task, type UserId } from "../../shared/types";
 import { userName } from "../format";
 import { navigate, routeToHash, type Route } from "../router";
 import { FILTER_HELP, searchTasks } from "../search";
@@ -223,7 +223,12 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 									<li key={hit.task.id} className="nav-item">
 										<a
 											className={
-												"nav-link search-result" + (hit.task.priority ? ` search-prio-${hit.task.priority}` : "")
+												"nav-link search-result" +
+												(hit.task.status === DONE_COLUMN
+													? " search-done"
+													: hit.task.priority
+														? ` search-prio-${hit.task.priority}`
+														: "")
 											}
 											href={routeToHash({
 												kind: "board",

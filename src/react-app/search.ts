@@ -11,7 +11,7 @@
  * for "re:".
  */
 import { CLIENT, COLUMNS, PRIORITIES, USERS } from "../../app.config";
-import type { Assignee, Board, Task } from "../shared/types";
+import { DONE_COLUMN, type Assignee, type Board, type Task } from "../shared/types";
 import { formatDueDate, todayIso, userName } from "./format";
 
 export interface SearchHit {
@@ -44,8 +44,6 @@ function matches(haystack: string, terms: string[]): boolean {
 
 type Predicate = (task: Task) => boolean;
 
-/** The last column counts as done; a completed task is not overdue (as on the card). */
-const DONE_COLUMN = COLUMNS[COLUMNS.length - 1].id;
 const DATE_PREFIX = /^\d{4}(-\d{2}(-\d{2})?)?$/;
 
 /** Human-readable summary of what a query matches, for the search box tooltip. */
