@@ -813,13 +813,15 @@ input[type="date"].input {
 	overscroll-behavior: contain; /* stops scroll chaining into the page in Safari and Firefox */
 	zoom: var(--app-scale-inverse, 1);
 	padding: calc(8px * var(--app-scale)) calc(8px * var(--app-scale)) calc(40px * var(--app-scale));
-	transition: background-color 120ms;
 }
 .column-list > :not([data-rfd-placeholder-context-id]) {
 	zoom: var(--app-scale);
 }
+/* The drop-target highlight fades in but leaves at once: a transition declared only on
+   the highlighted state applies when it is entered, not when it is left. */
 .column-list.over {
 	background: var(--accent-soft);
+	transition: background-color 120ms;
 }
 .card {
 	background: var(--bg);
@@ -1280,33 +1282,43 @@ input[type="date"].input {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+/* Hover is a hairline ring rather than a background change, so it shows on tinted chips too. */
 .cal-task:hover {
-	background: var(--hover);
+	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 .cal-task:focus-visible {
 	outline: 2px solid var(--accent);
 	outline-offset: 1px;
 }
-.cal-task.selected {
-	background: var(--accent-soft);
-	color: var(--accent);
-}
+/* Priority: the stripe plus the same wash the board's cards use, over the chip's own
+   background so the translucent Glass tints stay pastel. */
 .cal-task.cal-prio-low {
 	border-left-color: var(--prio-low);
+	background: linear-gradient(var(--prio-low-soft), var(--prio-low-soft)) var(--surface-1);
 }
 .cal-task.cal-prio-medium {
 	border-left-color: var(--prio-medium);
+	background: linear-gradient(var(--prio-medium-soft), var(--prio-medium-soft)) var(--surface-1);
 }
 .cal-task.cal-prio-high {
 	border-left-color: var(--prio-high);
+	background: linear-gradient(var(--prio-high-soft), var(--prio-high-soft)) var(--surface-1);
 }
 .cal-task.overdue {
 	color: var(--danger);
+}
+/* Selection and completion come after the priority rules so they win over the wash: a
+   selected chip shows the accent, and a done chip is played down (grey stripe, no tint)
+   the same way it loses its stripe colour. */
+.cal-task.selected {
+	background: var(--accent-soft);
+	color: var(--accent);
 }
 .cal-task.done {
 	color: var(--text-muted);
 	text-decoration: line-through;
 	border-left-color: var(--border);
+	background: var(--surface-1);
 }
 
 /* ---------- Confirmation popover ----------

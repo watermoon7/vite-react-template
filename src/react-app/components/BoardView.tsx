@@ -1,6 +1,13 @@
 /** One board: three drag-and-drop columns plus the task editor panel. */
-import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import {
+	DragDropContext,
+	Draggable,
+	Droppable,
+	type DraggableProvided,
+	type DraggableStateSnapshot,
+	type DropResult,
+} from "@hello-pangea/dnd";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { COLUMNS, TASK_SORTS } from "../../../app.config";
 import type { Board, ColumnId, ColumnOrder, Task } from "../../shared/types";
 import { unzoomDragStyle } from "../dragScale";
@@ -30,6 +37,40 @@ function groupByColumn(tasks: Task[], sort: TaskSort): Record<ColumnId, Task[]> 
 
 const SORT_OPTIONS: { value: TaskSort; label: string }[] = TASK_SORTS.map((s) => ({ value: s.id, label: s.label }));
 
+interface DraggableCardProps {
+	task: Task;
+	selected: boolean;
+	provided: DraggableProvided;
+	snapshot: DraggableStateSnapshot;
+	onSelect: (id: string) => void;
+	/** Called once the card has been released and is animating into place. */
+	onDropStart: () => void;
+}
+
+/** One card inside a Draggable; reports the moment its drop animation begins. */
+function DraggableCard({ task, selected, provided, snapshot, onSelect, onDropStart }: DraggableCardProps) {
+	useEffect(() => {
+		if (snapshot.isDropAnimating) onDropStart();
+	}, [snapshot.isDropAnimating, onDropStart]);
+	return (
+		<div
+			ref={provided.innerRef}
+			{...provided.draggableProps}
+			{...provided.dragHandleProps}
+			style={unzoomDragStyle(provided.draggableProps.style)}
+			className={
+				"card" +
+				(task.priority ? ` card-prio-${task.priority}` : "") +
+				(selected ? " selected" : "") +
+				(snapshot.isDragging ? " dragging" : "")
+			}
+			onClick={() => onSelect(task.id)}
+		>
+			<TaskCard task={task} />
+		</div>
+	);
+}
+
 export function BoardView({ board, tasks, selectedId }: Props) {
 	const [newTaskId, setNewTaskId] = useState<string | null>(null);
 	const sort = useSyncExternalStore(subscribeTaskSort, getTaskSort);
@@ -58,7 +99,14 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 		select(id);
 	}
 
+	// True from the moment a card is released until dnd reports the drop. dnd keeps a
+	// column's isDraggingOver set while the card animates into place, but the decision is
+	// made on release, so the column highlight goes then rather than lingering after landing.
+	const [dropping, setDropping] = useState(false);
+	const onDropStart = useCallback(() => setDropping(true), []);
+
 	function onDragEnd({ source, destination, draggableId }: DropResult): void {
+		setDropping(false);
 		if (!destination) return;
 		if (source.droppableId === destination.droppableId && source.index === destination.index) return;
 		const from = source.droppableId as ColumnId;
@@ -92,7 +140,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 			</header>
 
 			<div className="board-body">
-				<DragDropContext onDragEnd={onDragEnd}>
+				<DragDropContext onDragStart={() => setDropping(false)} onDragEnd={onDragEnd}>
 					<div className="columns">
 						{COLUMNS.map((col) => (
 							<section className="column" key={col.id}>
@@ -105,26 +153,19 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 										<div
 											ref={provided.innerRef}
 											{...provided.droppableProps}
-											className={"column-list" + (snapshot.isDraggingOver ? " over" : "")}
+											className={"column-list" + (snapshot.isDraggingOver && !dropping ? " over" : "")}
 										>
 											{byColumn[col.id].map((task, index) => (
 												<Draggable key={task.id} draggableId={task.id} index={index}>
 													{(p, s) => (
-														<div
-															ref={p.innerRef}
-															{...p.draggableProps}
-															{...p.dragHandleProps}
-															style={unzoomDragStyle(p.draggableProps.style)}
-															className={
-																"card" +
-																(task.priority ? ` card-prio-${task.priority}` : "") +
-																(task.id === selectedId ? " selected" : "") +
-																(s.isDragging ? " dragging" : "")
-															}
-															onClick={() => select(task.id)}
-														>
-															<TaskCard task={task} />
-														</div>
+														<DraggableCard
+															task={task}
+															selected={task.id === selectedId}
+															provided={p}
+															snapshot={s}
+															onSelect={select}
+															onDropStart={onDropStart}
+														/>
 													)}
 												</Draggable>
 											))}
