@@ -13,7 +13,9 @@ import { fileUrl } from "../api";
 import { formatDateTime, formatMessageTime, userName } from "../format";
 import { firstImageFile, prepareImage } from "../images";
 import { splitLinks } from "../linkify";
-import { deleteMessage, postMessage } from "../store";
+import { deleteMessage, postMessage, renameChannel } from "../store";
+import { ConfirmButton } from "./Confirm";
+import { EditableTitle } from "./EditableTitle";
 
 interface Props {
 	channel: Channel;
@@ -81,7 +83,10 @@ function Composer({ channel, onPosted }: ComposerProps) {
 		const el = textarea.current;
 		if (!el) return;
 		el.style.height = "auto";
-		el.style.height = `${el.scrollHeight}px`;
+		// scrollHeight excludes the borders, but with box-sizing: border-box the height must
+		// include them — otherwise the box is 2px short and shows a scrollbar for a single line.
+		const borders = el.offsetHeight - el.clientHeight;
+		el.style.height = `${el.scrollHeight + borders}px`;
 	}, [text]);
 
 	async function attach(file: File | null): Promise<void> {
@@ -164,7 +169,7 @@ function Composer({ channel, onPosted }: ComposerProps) {
 					className="chat-input"
 					rows={1}
 					autoFocus
-					placeholder={`Message #${channel.name}`}
+					placeholder={`Message ${channel.name}`}
 					value={text}
 					disabled={busy}
 					onChange={(e) => setText(e.target.value)}
@@ -216,26 +221,23 @@ export function ChannelPage({ channel, messages, user }: Props) {
 		if (stickToBottom.current) scrollToBottom();
 	}
 
-	async function remove(message: Message): Promise<void> {
-		if (!confirm("Delete this message?")) return;
-		await deleteMessage(message.id);
-	}
-
 	const groups = groupMessages(messages);
 
 	return (
 		<div className="page chat">
 			<header className="page-header">
-				<h1 className="page-title">
-					<span className="chat-hash">#</span>
-					{channel.name}
-				</h1>
+				<EditableTitle
+					key={channel.id + channel.name}
+					value={channel.name}
+					label="Channel name"
+					onRename={(name) => void renameChannel(channel.id, name)}
+				/>
 				<span className="muted small">{messages.length === 1 ? "1 message" : `${messages.length} messages`}</span>
 			</header>
 			<div className="chat-log" ref={log} onScroll={onScroll}>
 				{messages.length === 0 && (
 					<div className="chat-empty muted">
-						<p>This is the start of #{channel.name}.</p>
+						<p>This is the start of “{channel.name}”.</p>
 					</div>
 				)}
 				{groups.map((group) => (
@@ -260,14 +262,18 @@ export function ChannelPage({ channel, messages, user }: Props) {
 									</a>
 								)}
 								{message.author === user && (
-									<button
+									<ConfirmButton
 										className="msg-delete"
 										title="Delete message"
 										aria-label="Delete message"
-										onClick={() => void remove(message)}
+										message="Delete this message?"
+										confirmLabel="Delete"
+										danger
+										placement="above-end"
+										onConfirm={() => void deleteMessage(message.id)}
 									>
 										×
-									</button>
+									</ConfirmButton>
 								)}
 							</div>
 						))}

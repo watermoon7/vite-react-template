@@ -18,6 +18,7 @@ import { canDecrease, canIncrease, getScale, resetScale, stepScale, subscribeSca
 import { logout, restoreBackup } from "../store";
 import { getStyle, setStyle, subscribeStyle, type StylePreference } from "../style";
 import { getTheme, setTheme, subscribeTheme, type ThemePreference } from "../theme";
+import { ConfirmButton, ConfirmPopover } from "./Confirm";
 import { Segmented } from "./Segmented";
 
 interface Props {
@@ -51,6 +52,8 @@ export function SettingsPage({ user, data }: Props) {
 	const theme = useSyncExternalStore(subscribeTheme, getTheme);
 	const style = useSyncExternalStore(subscribeStyle, getStyle);
 	const [message, setMessage] = useState<string | null>(null);
+	// A parsed import waiting for the user to confirm restoring it (the popover sits by the Import button).
+	const [pendingImport, setPendingImport] = useState<{ data: BackupData; label: string } | null>(null);
 	const fileInput = useRef<HTMLInputElement>(null);
 
 	const newest = snapshots[0];
@@ -64,8 +67,8 @@ export function SettingsPage({ user, data }: Props) {
 		setMessage(snap ? "Snapshot saved." : empty ? "Nothing to back up yet." : "Nothing changed since the latest snapshot.");
 	}
 
-	async function restore(source: BackupData, label: string): Promise<void> {
-		if (!confirm(`Restore missing boards and tasks from ${label}?\n\nExisting items are left untouched.`)) return;
+	/** Restores `source`; callers ask for confirmation first (see ConfirmButton / pendingImport). */
+	async function restore(source: BackupData): Promise<void> {
 		const result = await restoreBackup(source);
 		if (!result) return;
 		const total = result.restoredBoards + result.restoredTasks;
@@ -81,8 +84,7 @@ export function SettingsPage({ user, data }: Props) {
 		e.target.value = "";
 		if (!file) return;
 		try {
-			const parsed = parseBackupFile(await file.text());
-			await restore(parsed, `"${file.name}"`);
+			setPendingImport({ data: parseBackupFile(await file.text()), label: `“${file.name}”` });
 		} catch (err) {
 			setMessage(`Could not read file: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -181,9 +183,25 @@ export function SettingsPage({ user, data }: Props) {
 						<button className="btn" onClick={() => downloadJson(data, fileStem("kanban", new Date().toISOString()))}>
 							Download current data
 						</button>
-						<button className="btn" onClick={() => fileInput.current?.click()}>
-							Import file…
-						</button>
+						<span className="confirm-anchor">
+							<button className="btn" onClick={() => fileInput.current?.click()}>
+								Import file…
+							</button>
+							{pendingImport && (
+								<ConfirmPopover
+									message={`Restore missing boards and tasks from ${pendingImport.label}?`}
+									detail="Existing items are left untouched."
+									confirmLabel="Restore"
+									placement="below-start"
+									onConfirm={() => {
+										const { data } = pendingImport;
+										setPendingImport(null);
+										void restore(data);
+									}}
+									onCancel={() => setPendingImport(null)}
+								/>
+							)}
+						</span>
 						<input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => void importFile(e)} />
 					</div>
 					{message && (
@@ -217,9 +235,15 @@ export function SettingsPage({ user, data }: Props) {
 												<button className="btn btn-ghost" onClick={() => downloadJson(s, fileStem("kanban-snapshot", s.at))}>
 													Download
 												</button>
-												<button className="btn btn-ghost" onClick={() => void restore(s, `the snapshot of ${formatDateTime(s.at)}`)}>
+												<ConfirmButton
+													className="btn btn-ghost"
+													message={`Restore missing boards and tasks from the snapshot of ${formatDateTime(s.at)}?`}
+													detail="Existing items are left untouched."
+													confirmLabel="Restore"
+													onConfirm={() => void restore(s)}
+												>
 													Restore
-												</button>
+												</ConfirmButton>
 												<button className="btn btn-ghost danger" onClick={() => remove(s)}>
 													Delete
 												</button>

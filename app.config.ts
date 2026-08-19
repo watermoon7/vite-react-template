@@ -51,6 +51,17 @@ export const THEMES = [
 	{ id: "dark", label: "Dark" },
 ] as const;
 
+/**
+ * Orders offered by the board's Sort control. "manual" is the drag-and-drop order; the
+ * others sort each column by that field (ties keep the manual order). Stored per browser.
+ */
+export const TASK_SORTS = [
+	{ id: "manual", label: "Manual" },
+	{ id: "priority", label: "Priority" },
+	{ id: "due", label: "Due date" },
+	{ id: "name", label: "Name" },
+] as const;
+
 /** Assignee used for a task when none is chosen. */
 export const DEFAULT_ASSIGNEE = "both";
 
@@ -138,5 +149,7 @@ export const CLIENT = {
 		style: "kanban:style",
 		/** Each user's chosen style in this browser, as a JSON object keyed by user id. */
 		styleChoices: "kanban:style-choices",
+		/** The board Sort control's choice (one of TASK_SORTS). */
+		taskSort: "kanban:task-sort",
 	},
 };

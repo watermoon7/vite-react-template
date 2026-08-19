@@ -151,6 +151,11 @@ app.post("/api/channels", async (c) => {
 	return c.json(await store(c.env).createChannel(c.get("user"), name), 201);
 });
 
+app.patch("/api/channels/:id", async (c) => {
+	const { name } = parseChannelInput(await jsonBody(c));
+	return c.json(await store(c.env).renameChannel(c.get("user"), c.req.param("id"), name));
+});
+
 app.delete("/api/channels/:id", async (c) =>
 	c.json(await store(c.env).deleteChannel(c.get("user"), c.req.param("id"))),
 );
