@@ -1393,8 +1393,8 @@ input[type="date"].input {
 	color: var(--danger);
 }
 /* Selection and completion come after the priority rules so they win over the wash: a
-   selected chip shows the accent, and a done chip is played down (grey stripe, no tint)
-   the same way it loses its stripe colour. */
+   selected chip shows the accent, and a done chip takes the board's green "done" wash
+   (done beats priority there too) with its stripe played down. */
 .cal-task.selected {
 	background: var(--accent-soft);
 	color: var(--accent);
@@ -1403,7 +1403,7 @@ input[type="date"].input {
 	color: var(--text-muted);
 	text-decoration: line-through;
 	border-left-color: var(--border);
-	background: var(--surface-1);
+	background: linear-gradient(var(--done-soft), var(--done-soft)) var(--surface-1);
 }
 
 /* ---------- Confirmation popover ----------
