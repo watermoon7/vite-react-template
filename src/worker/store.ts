@@ -346,6 +346,13 @@ export class KanbanStore extends DurableObject<Env> {
 		return { state, channelId: id };
 	}
 
+	renameChannel(user: UserId, id: string, name: string): AppState {
+		return this.commit(user, () => {
+			if (!this.channelExists(id)) throw new Error(NOT_FOUND);
+			this.sql.exec("UPDATE channels SET name = ? WHERE id = ?", name, id);
+		});
+	}
+
 	/** Deletes a channel with all of its messages and their images. */
 	deleteChannel(user: UserId, id: string): AppState {
 		return this.commit(user, () => {

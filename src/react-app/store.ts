@@ -222,6 +222,10 @@ export async function createChannel(name: string): Promise<string | null> {
 	return result?.channelId ?? null;
 }
 
+export async function renameChannel(id: string, name: string): Promise<boolean> {
+	return (await mutate(() => api.renameChannel(id, name), (s) => s)) !== null;
+}
+
 export async function deleteChannel(id: string): Promise<boolean> {
 	return (await mutate(() => api.deleteChannel(id), (s) => s)) !== null;
 }

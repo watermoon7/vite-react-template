@@ -46,6 +46,7 @@ export const api = {
 	updateTask: (id: string, patch: TaskPatch) => request<AppState>("PATCH", `/api/tasks/${id}`, patch),
 	deleteTask: (id: string) => request<AppState>("DELETE", `/api/tasks/${id}`),
 	createChannel: (name: string) => request<{ state: AppState; channelId: string }>("POST", "/api/channels", { name }),
+	renameChannel: (id: string, name: string) => request<AppState>("PATCH", `/api/channels/${id}`, { name }),
 	deleteChannel: (id: string) => request<AppState>("DELETE", `/api/channels/${id}`),
 	/** `image` is a base64 data URL of an accepted image type, or undefined for a text-only message. */
 	postMessage: (channelId: string, text: string, image?: string) =>

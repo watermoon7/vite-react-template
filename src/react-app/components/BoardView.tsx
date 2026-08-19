@@ -1,10 +1,13 @@
 /** One board: three drag-and-drop columns plus the task editor panel. */
 import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { COLUMNS } from "../../../app.config";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { COLUMNS, TASK_SORTS } from "../../../app.config";
 import type { Board, ColumnId, ColumnOrder, Task } from "../../shared/types";
 import { replaceRoute } from "../router";
 import { createTask, renameBoard, reorderTasks } from "../store";
+import { compareTasks, getTaskSort, setTaskSort, subscribeTaskSort, type TaskSort } from "../taskSort";
+import { EditableTitle } from "./EditableTitle";
+import { Segmented } from "./Segmented";
 import { TaskCard } from "./TaskCard";
 import { TaskEditor } from "./TaskEditor";
 
@@ -15,76 +18,21 @@ interface Props {
 	selectedId: string | null;
 }
 
-/** Tasks of one board grouped by column, each sorted by position then creation time. */
-function groupByColumn(tasks: Task[]): Record<ColumnId, Task[]> {
+/** Tasks of one board grouped by column, each in the chosen sort order (manual = position). */
+function groupByColumn(tasks: Task[], sort: TaskSort): Record<ColumnId, Task[]> {
 	const groups = Object.fromEntries(COLUMNS.map((c) => [c.id, [] as Task[]])) as Record<ColumnId, Task[]>;
 	for (const t of tasks) groups[t.status].push(t);
-	for (const list of Object.values(groups)) {
-		list.sort((a, b) => a.position - b.position || a.createdAt.localeCompare(b.createdAt));
-	}
+	const compare = compareTasks(sort);
+	for (const list of Object.values(groups)) list.sort(compare);
 	return groups;
 }
 
-function BoardTitle({ board }: { board: Board }) {
-	const [editing, setEditing] = useState(false);
-	const [name, setName] = useState(board.name);
-	// Enter and the resulting blur both call commit; the ref makes the second call a no-op.
-	const pendingName = useRef<string | null>(null);
-
-	function editName(value: string): void {
-		pendingName.current = value;
-		setName(value);
-	}
-
-	async function commit(): Promise<void> {
-		const value = pendingName.current;
-		pendingName.current = null;
-		setEditing(false);
-		if (value === null) return;
-		const trimmed = value.trim();
-		if (!trimmed || trimmed === board.name) {
-			setName(board.name);
-			return;
-		}
-		await renameBoard(board.id, trimmed);
-	}
-
-	function onKey(e: KeyboardEvent<HTMLInputElement>): void {
-		if (e.key === "Enter") void commit();
-		if (e.key === "Escape") {
-			pendingName.current = null;
-			setName(board.name);
-			setEditing(false);
-		}
-	}
-
-	if (editing) {
-		return (
-			<input
-				className="board-title-input"
-				autoFocus
-				value={name}
-				onChange={(e) => editName(e.target.value)}
-				onKeyDown={onKey}
-				onBlur={() => void commit()}
-				aria-label="Board name"
-			/>
-		);
-	}
-	return (
-		<h1 className="board-title" title="Click to rename" onClick={() => {
-				setName(board.name);
-				pendingName.current = board.name;
-				setEditing(true);
-			}}>
-			{board.name}
-		</h1>
-	);
-}
+const SORT_OPTIONS: { value: TaskSort; label: string }[] = TASK_SORTS.map((s) => ({ value: s.id, label: s.label }));
 
 export function BoardView({ board, tasks, selectedId }: Props) {
 	const [newTaskId, setNewTaskId] = useState<string | null>(null);
-	const byColumn = useMemo(() => groupByColumn(tasks), [tasks]);
+	const sort = useSyncExternalStore(subscribeTaskSort, getTaskSort);
+	const byColumn = useMemo(() => groupByColumn(tasks, sort), [tasks, sort]);
 	// If the selected task was deleted (possibly by the other user) the editor closes.
 	const selected = tasks.find((t) => t.id === selectedId) ?? null;
 
@@ -125,8 +73,17 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 	return (
 		<>
 			<header className="board-header">
-				<BoardTitle key={board.id + board.name} board={board} />
+				<EditableTitle
+					key={board.id + board.name}
+					value={board.name}
+					label="Board name"
+					onRename={(name) => void renameBoard(board.id, name)}
+				/>
 				<span className="muted small">{tasks.length === 1 ? "1 task" : `${tasks.length} tasks`}</span>
+				<div className="board-sort">
+					<span className="muted small">Sort</span>
+					<Segmented label="Sort tasks" options={SORT_OPTIONS} value={sort} onChange={setTaskSort} />
+				</div>
 				<div className="spacer" />
 				<button className="btn btn-primary" onClick={() => void addTask()}>
 					+ Add task

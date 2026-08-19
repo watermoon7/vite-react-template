@@ -5,6 +5,7 @@ import type { Assignee, Board, Priority, Task, TaskPatch } from "../../shared/ty
 import { formatDateTime, formatRelative, userName } from "../format";
 import { routeToHash } from "../router";
 import { deleteTask, updateTask } from "../store";
+import { ConfirmButton } from "./Confirm";
 import { Segmented } from "./Segmented";
 import { useDebouncedSave } from "../useDebouncedSave";
 
@@ -74,7 +75,6 @@ export function TaskEditor({ task, autoFocus, onClose, board }: Props) {
 	const view = { ...task, ...draft };
 
 	async function remove(): Promise<void> {
-		if (!confirm("Delete this task?")) return;
 		onClose();
 		await deleteTask(task.id);
 	}
@@ -156,9 +156,16 @@ export function TaskEditor({ task, autoFocus, onClose, board }: Props) {
 				<div className="muted small" title={`Created ${formatDateTime(task.createdAt)}`}>
 					Updated {formatRelative(task.updatedAt)} by {userName(task.updatedBy)}
 				</div>
-				<button className="btn btn-danger" type="button" onClick={() => void remove()}>
+				<ConfirmButton
+					className="btn btn-danger"
+					message="Delete this task?"
+					confirmLabel="Delete task"
+					danger
+					placement="above-end"
+					onConfirm={() => void remove()}
+				>
 					Delete
-				</button>
+				</ConfirmButton>
 			</footer>
 		</aside>
 	);

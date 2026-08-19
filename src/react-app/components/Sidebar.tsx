@@ -1,10 +1,11 @@
 /** Left panel: task search, boards and channels (create/delete/switch), calendar, settings, connection status. */
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Board, Channel, Message, Task, UserId } from "../../shared/types";
 import { userName } from "../format";
 import { navigate, routeToHash, type Route } from "../router";
-import { searchTasks } from "../search";
-import { createBoard, createChannel, deleteBoard, deleteChannel } from "../store";
+import { FILTER_HELP, searchTasks } from "../search";
+import { createBoard, createChannel, deleteBoard, deleteChannel, renameBoard, renameChannel } from "../store";
+import { ConfirmButton } from "./Confirm";
 
 interface Props {
 	route: Route;
@@ -16,19 +17,21 @@ interface Props {
 	live: boolean;
 }
 
-interface NewItemInputProps {
+interface NameInputProps {
 	placeholder: string;
-	/** Called with the trimmed, non-empty name. */
+	/** Current name when renaming; omitted when creating. */
+	initialValue?: string;
+	/** Called with the trimmed, non-empty name — and, when renaming, only if it changed. */
 	onSubmit: (name: string) => void;
-	/** Called on Escape or when the input is left empty. */
+	/** Called on Escape, or when the input is left empty or unchanged. */
 	onCancel: () => void;
 }
 
-/** Inline "new board / new channel" input: Enter or blur submits, Escape cancels. */
-function NewItemInput({ placeholder, onSubmit, onCancel }: NewItemInputProps) {
-	const [value, setValue] = useState("");
+/** Inline name input for creating or renaming a board / channel: Enter or blur submits, Escape cancels. */
+function NameInput({ placeholder, initialValue = "", onSubmit, onCancel }: NameInputProps) {
+	const [value, setValue] = useState(initialValue);
 	// Enter and the resulting blur both call submit; the ref makes the second call a no-op.
-	const pending = useRef("");
+	const pending = useRef(initialValue);
 
 	function edit(next: string): void {
 		pending.current = next;
@@ -38,7 +41,7 @@ function NewItemInput({ placeholder, onSubmit, onCancel }: NewItemInputProps) {
 	function submit(): void {
 		const name = pending.current.trim();
 		pending.current = "";
-		if (name) onSubmit(name);
+		if (name && name !== initialValue) onSubmit(name);
 		else onCancel();
 	}
 
@@ -69,6 +72,9 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 	const resultList = useRef<HTMLDivElement>(null);
 	const [creatingBoard, setCreatingBoard] = useState(false);
 	const [creatingChannel, setCreatingChannel] = useState(false);
+	/** Board or channel whose name is being edited in place, if any. */
+	const [renaming, setRenaming] = useState<{ kind: "board" | "channel"; id: string } | null>(null);
+	const isRenaming = (kind: "board" | "channel", id: string) => renaming?.kind === kind && renaming.id === id;
 
 	async function submitNewBoard(name: string): Promise<void> {
 		setCreatingBoard(false);
@@ -120,19 +126,52 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 	}
 
 	async function removeBoard(board: Board): Promise<void> {
-		const count = tasks.filter((t) => t.boardId === board.id).length;
-		const detail = count === 1 ? "1 task" : `${count} tasks`;
-		if (!confirm(`Delete "${board.name}" and its ${detail}?\n\nA local backup is kept under Settings.`)) return;
 		if (route.kind === "board" && route.boardId === board.id) navigate({ kind: "home" });
 		await deleteBoard(board.id);
 	}
 
 	async function removeChannel(channel: Channel): Promise<void> {
-		const count = messages.filter((m) => m.channelId === channel.id).length;
-		const detail = count === 1 ? "1 message" : `${count} messages`;
-		if (!confirm(`Delete #${channel.name} and its ${detail}?\n\nMessages and images in a channel are not backed up.`)) return;
 		if (route.kind === "channel" && route.channelId === channel.id) navigate({ kind: "home" });
 		await deleteChannel(channel.id);
+	}
+
+	function taskCount(board: Board): string {
+		const count = tasks.filter((t) => t.boardId === board.id).length;
+		return count === 1 ? "1 task" : `${count} tasks`;
+	}
+
+	function messageCount(channel: Channel): string {
+		const count = messages.filter((m) => m.channelId === channel.id).length;
+		return count === 1 ? "1 message" : `${count} messages`;
+	}
+
+	/** Hover actions of a board / channel row: rename (in place) and delete (with confirmation). */
+	function rowActions(kind: "board" | "channel", item: Board | Channel, onDelete: () => void, detail: string): ReactNode {
+		const noun = kind === "board" ? "board" : "channel";
+		return (
+			<>
+				<button
+					className="nav-action"
+					title={`Rename ${noun}`}
+					aria-label={`Rename ${noun} ${item.name}`}
+					onClick={() => setRenaming({ kind, id: item.id })}
+				>
+					✎
+				</button>
+				<ConfirmButton
+					className="nav-action nav-delete"
+					title={`Delete ${noun}`}
+					aria-label={`Delete ${noun} ${item.name}`}
+					message={`Delete “${item.name}” and its ${detail}?`}
+					detail={kind === "board" ? "A local backup is kept under Settings." : "Messages and images in a channel are not backed up."}
+					confirmLabel="Delete"
+					danger
+					onConfirm={onDelete}
+				>
+					×
+				</ConfirmButton>
+			</>
+		);
 	}
 
 	const isBoard = (id: string) => route.kind === "board" && route.boardId === id;
@@ -148,6 +187,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 					type="search"
 					aria-label="Search tasks"
 					placeholder="Search tasks"
+					title={FILTER_HELP}
 					spellCheck={false}
 					autoComplete="off"
 					value={query}
@@ -213,22 +253,29 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 						<ul className="nav-list">
 							{boards.map((b) => (
 								<li key={b.id} className={"nav-item" + (isBoard(b.id) ? " active" : "")}>
-									<a href={routeToHash({ kind: "board", boardId: b.id })} className="nav-link" title={b.name}>
-										{b.name}
-									</a>
-									<button
-										className="nav-delete"
-										title="Delete board"
-										aria-label={`Delete board ${b.name}`}
-										onClick={() => void removeBoard(b)}
-									>
-										×
-									</button>
+									{isRenaming("board", b.id) ? (
+										<NameInput
+											placeholder="Board name"
+											initialValue={b.name}
+											onSubmit={(name) => {
+												setRenaming(null);
+												void renameBoard(b.id, name);
+											}}
+											onCancel={() => setRenaming(null)}
+										/>
+									) : (
+										<>
+											<a href={routeToHash({ kind: "board", boardId: b.id })} className="nav-link" title={b.name}>
+												{b.name}
+											</a>
+											{rowActions("board", b, () => void removeBoard(b), taskCount(b))}
+										</>
+									)}
 								</li>
 							))}
 							{creatingBoard && (
 								<li className="nav-item">
-									<NewItemInput
+									<NameInput
 										placeholder="Board name"
 										onSubmit={(name) => void submitNewBoard(name)}
 										onCancel={() => setCreatingBoard(false)}
@@ -254,27 +301,29 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 						<ul className="nav-list">
 							{channels.map((c) => (
 								<li key={c.id} className={"nav-item" + (isChannel(c.id) ? " active" : "")}>
-									<a
-										href={routeToHash({ kind: "channel", channelId: c.id })}
-										className="nav-link nav-channel"
-										title={`#${c.name}`}
-									>
-										<span className="nav-hash">#</span>
-										{c.name}
-									</a>
-									<button
-										className="nav-delete"
-										title="Delete channel"
-										aria-label={`Delete channel ${c.name}`}
-										onClick={() => void removeChannel(c)}
-									>
-										×
-									</button>
+									{isRenaming("channel", c.id) ? (
+										<NameInput
+											placeholder="Channel name"
+											initialValue={c.name}
+											onSubmit={(name) => {
+												setRenaming(null);
+												void renameChannel(c.id, name);
+											}}
+											onCancel={() => setRenaming(null)}
+										/>
+									) : (
+										<>
+											<a href={routeToHash({ kind: "channel", channelId: c.id })} className="nav-link" title={c.name}>
+												{c.name}
+											</a>
+											{rowActions("channel", c, () => void removeChannel(c), messageCount(c))}
+										</>
+									)}
 								</li>
 							))}
 							{creatingChannel && (
 								<li className="nav-item">
-									<NewItemInput
+									<NameInput
 										placeholder="Channel name"
 										onSubmit={(name) => void submitNewChannel(name)}
 										onCancel={() => setCreatingChannel(false)}
@@ -300,10 +349,11 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 						</a>
 					</li>
 				</ul>
-				<div className="sidebar-status" title={live ? "Connected — changes sync instantly" : "Reconnecting…"}>
-					<span className={"status-dot" + (live ? " on" : "")} />
-					{userName(user)} · {live ? "Live" : "Reconnecting…"}
-				</div>
+			</div>
+
+			<div className="sidebar-status" title={live ? "Connected — changes sync instantly" : "Reconnecting…"}>
+				<span className={"status-dot" + (live ? " on" : "")} />
+				{userName(user)} · {live ? "Live" : "Reconnecting…"}
 			</div>
 		</nav>
 	);
