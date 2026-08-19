@@ -157,7 +157,10 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 															{...p.draggableProps}
 															{...p.dragHandleProps}
 															className={
-																"card" + (task.id === selectedId ? " selected" : "") + (s.isDragging ? " dragging" : "")
+																"card" +
+																(task.priority ? ` card-prio-${task.priority}` : "") +
+																(task.id === selectedId ? " selected" : "") +
+																(s.isDragging ? " dragging" : "")
 															}
 															onClick={() => select(task.id)}
 														>

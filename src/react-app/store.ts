@@ -8,6 +8,7 @@ import { CLIENT } from "../../app.config";
 import type { AppState, BackupData, ColumnOrder, RestoreResult, Task, TaskPatch, UserId } from "../shared/types";
 import { api, ApiError } from "./api";
 import { recordStateTransition } from "./backups";
+import { showLoginStyle } from "./style";
 
 export type AuthStatus = "unknown" | "authenticated" | "unauthenticated";
 
@@ -154,6 +155,8 @@ export async function logout(): Promise<void> {
 	} finally {
 		socket?.close();
 		setState({ auth: "unauthenticated", user: null, data: null, live: false });
+		// Remember the sign-in page's style now, so the reload below paints it before React runs.
+		showLoginStyle();
 		location.replace("/");
 	}
 }

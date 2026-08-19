@@ -15,6 +15,12 @@ export const STYLES = [
 type StyleId = (typeof STYLES)[number]["id"];
 
 /**
+ * Style of the sign-in page — shown before any user, and so their preference, is known.
+ * Duplicated as the fallback in the pre-paint script in index.html — change both together.
+ */
+export const LOGIN_STYLE: StyleId = "glass";
+
+/**
  * The two users. `passwordSecret` names the Worker secret / .dev.vars key holding that
  * user's password. `defaultStyle` applies until the user picks a style in Settings.
  */
