@@ -13,7 +13,7 @@
 		"not_found_handling": "single-page-application",
 		"run_worker_first": ["/api/*"]
 	},
-	"r2_buckets": [{ "binding": "MUSIC", "bucket_name": "kanban-music", "remote": true }],
+	"r2_buckets": [{ "binding": "MUSIC", "bucket_name": "kanban-music" }],
 	"durable_objects": {
 		"bindings": [{ "name": "KANBAN", "class_name": "KanbanStore" }]
 	},
