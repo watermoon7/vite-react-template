@@ -200,6 +200,21 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<boolean>
 	return (await mutate(() => api.updateTask(id, patch), (s) => s)) !== null;
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Moves a task to another due date. Applied optimistically (a chip dropped on a calendar
+ * day must not snap back while the request is in flight), then confirmed by the server.
+ */
+export async function rescheduleTask(id: string, dueDate: string): Promise<boolean> {
+	if (!ISO_DATE.test(dueDate)) throw new Error(`dueDate must be YYYY-MM-DD, got ${dueDate}`);
+	const data = state.data;
+	if (!data) return false;
+	if (!data.tasks.some((t) => t.id === id)) return false;
+	setState({ data: { ...data, tasks: data.tasks.map((t) => (t.id === id ? { ...t, dueDate } : t)) } });
+	return updateTask(id, { dueDate });
+}
+
 export async function deleteTask(id: string): Promise<boolean> {
 	return (await mutate(() => api.deleteTask(id), (s) => s)) !== null;
 }
