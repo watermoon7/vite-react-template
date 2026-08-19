@@ -3,6 +3,7 @@
  * voice room, calendar, music, settings and the connection status.
  */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { APP_NAME } from "../../../app.config";
 import {
 	DONE_COLUMN,
 	type Board,
@@ -200,7 +201,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, songs, playb
 
 	return (
 		<nav className="sidebar">
-			<div className="sidebar-brand">Kanban</div>
+			<div className="sidebar-brand">{APP_NAME}</div>
 
 			<div className="sidebar-search" role="search">
 				<input

@@ -1,6 +1,8 @@
-# Kanban
+# Ordo
 
-A two-person kanban board: boards with **Not started / In progress / Completed** columns, drag-and-drop tasks, search across every board, a calendar of due dates, Discord-style text channels (text, links and images), an always-there voice room with screen sharing, a shared music player that stays in sync for both of you, live sync between users, local backups, a light/dark theme and a choice of two visual styles (“Erect”, the flat one, or “Glassid”, the glass one).
+A collaboration app for two people, built around a kanban board: boards with **Not started / In progress / Completed** columns, drag-and-drop tasks, search across every board, a calendar of due dates, Discord-style text channels (text, links and images), an always-there voice room with screen sharing, a shared music player that stays in sync for both of you, live sync between users, local backups, a light/dark theme and a choice of two visual styles (“Erect”, the flat one, or “Glassid”, the glass one).
+
+The name is a label only, set as `APP_NAME` in [`app.config.ts`](app.config.ts) and mirrored in the `<title>` in `index.html`. The Worker, the `KanbanStore` Durable Object, the session cookie and the `kanban:*` localStorage keys all still say `kanban`: renaming those would strand the stored data rather than move it.
 
 Stack: React + Vite (client), Hono on Cloudflare Workers (API), a SQLite-backed Durable Object (storage + WebSocket push), R2 for song files, and WebRTC between the two browsers for voice and screen sharing. No external database to provision.
 

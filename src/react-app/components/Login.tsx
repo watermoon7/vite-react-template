@@ -1,6 +1,6 @@
 /** Sign-in form. A real form POST so browsers offer to save / autofill the password. */
 import { useEffect, useState } from "react";
-import { AUTH } from "../../../app.config";
+import { APP_NAME, AUTH } from "../../../app.config";
 
 export function Login() {
 	// Captured once so the message survives re-renders after the URL is cleaned up.
@@ -14,7 +14,7 @@ export function Login() {
 	return (
 		<div className="screen-center">
 			<form className="login" method="post" action="/api/login">
-				<h1 className="login-title">Kanban</h1>
+				<h1 className="login-title">{APP_NAME}</h1>
 				<label className="field">
 					<span className="label">Username</span>
 					<input name="username" autoComplete="username" required autoFocus spellCheck={false} />

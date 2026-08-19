@@ -4,6 +4,15 @@
  */
 
 /**
+ * What the app calls itself: the sign-in heading, the sidebar brand and the browser tab.
+ * Duplicated as the <title> in index.html, which is static and cannot import this file —
+ * change both together. Purely a label: the Worker, the Durable Object class, the session
+ * cookie and the localStorage keys are all still named "kanban", and renaming those would
+ * strand the stored data rather than move it.
+ */
+export const APP_NAME = "Ordo";
+
+/**
  * Visual styles offered in Settings. "classic" is the original flat look; "glass" is a
  * translucent, blurred look over a soft colour backdrop. Both follow the light/dark theme.
  * The ids are stored in localStorage and keyed on by app.css, so only the labels are renamable.
