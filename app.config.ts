@@ -72,6 +72,12 @@ export const DISPLAY = {
 	defaultScale: 1,
 };
 
+/** Calendar view of tasks that have a due date. */
+export const CALENDAR = {
+	/** First day of the week in the month grid: 0 = Sunday, 1 = Monday. */
+	weekStartsOn: 1,
+};
+
 /** Client-side behaviour. */
 export const CLIENT = {
 	/** Delay between the last keystroke and the save request. */

@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo } from "react";
 import { CLIENT } from "../../app.config";
 import type { AppState } from "../shared/types";
 import { BoardView } from "./components/BoardView";
+import { CalendarPage } from "./components/CalendarPage";
 import { Login } from "./components/Login";
 import { NotesPage } from "./components/NotesPage";
 import { SettingsPage } from "./components/SettingsPage";
@@ -20,10 +21,16 @@ function resolveRoute(requested: Route, data: AppState): Route {
 		}
 		return requested;
 	}
+	if (requested.kind === "calendar") {
+		if (requested.taskId && !data.tasks.some((t) => t.id === requested.taskId)) return { kind: "calendar" };
+		return requested;
+	}
 	if (requested.kind === "notes" || requested.kind === "settings") return requested;
 	const remembered = lastRoute();
 	if (remembered && remembered.kind === "board" && exists(remembered.boardId)) return remembered;
-	if (remembered && (remembered.kind === "notes" || remembered.kind === "settings")) return remembered;
+	if (remembered && (remembered.kind === "notes" || remembered.kind === "calendar" || remembered.kind === "settings")) {
+		return remembered;
+	}
 	return data.boards.length > 0 ? { kind: "board", boardId: data.boards[0].id } : { kind: "home" };
 }
 
@@ -77,6 +84,9 @@ export default function App() {
 				)}
 				{route.kind === "notes" && (
 					<NotesPage key={route.scope} scope={route.scope} content={data.notes[route.scope]} />
+				)}
+				{route.kind === "calendar" && (
+					<CalendarPage boards={data.boards} tasks={data.tasks} selectedId={route.taskId ?? null} />
 				)}
 				{route.kind === "settings" && <SettingsPage user={store.user} data={data} />}
 				{route.kind === "home" && (
