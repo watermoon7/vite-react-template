@@ -23,11 +23,11 @@
 	--ok: #16a34a;
 	--prio-low: #a16207;
 	--prio-medium: #c2410c;
-	--prio-high: #b42318;
+	--prio-high: #dc2626;
 	/* Card backgrounds by priority: a wash of the priority colour, light enough for --text. */
 	--prio-low-soft: #fbf0b8;
-	--prio-medium-soft: #fde0c2;
-	--prio-high-soft: #fcdad8;
+	--prio-medium-soft: #feead6;
+	--prio-high-soft: #fdd0d0;
 	/* Text of the calendar's "today" marker, which is filled with --accent. */
 	--today-fg: var(--bg);
 	/* Column headers (In progress / Completed) and cards in the last column. */
@@ -73,10 +73,10 @@
 		--ok: #4ade80;
 		--prio-low: #e9c84a;
 		--prio-medium: #f0944a;
-		--prio-high: #f28b82;
+		--prio-high: #f87171;
 		--prio-low-soft: #35301a;
-		--prio-medium-soft: #3a2818;
-		--prio-high-soft: #37201f;
+		--prio-medium-soft: #33261a;
+		--prio-high-soft: #4a2022;
 		--progress-soft: #1c2b44;
 		--done-soft: #1a3329;
 		--progress-faint: #151d2c;
@@ -108,10 +108,10 @@
 	--ok: #4ade80;
 	--prio-low: #e9c84a;
 	--prio-medium: #f0944a;
-	--prio-high: #f28b82;
+	--prio-high: #f87171;
 	--prio-low-soft: #35301a;
-	--prio-medium-soft: #3a2818;
-	--prio-high-soft: #37201f;
+	--prio-medium-soft: #33261a;
+	--prio-high-soft: #4a2022;
 	--progress-soft: #1c2b44;
 	--done-soft: #1a3329;
 	--progress-faint: #151d2c;
@@ -167,10 +167,10 @@
 	--ok: #059669;
 	--prio-low: #a16207;
 	--prio-medium: #c2410c;
-	--prio-high: #b91c1c;
+	--prio-high: #dc2626;
 	--prio-low-soft: rgba(234, 179, 8, 0.2);
-	--prio-medium-soft: rgba(249, 115, 22, 0.18);
-	--prio-high-soft: rgba(220, 38, 38, 0.14);
+	--prio-medium-soft: rgba(249, 115, 22, 0.12);
+	--prio-high-soft: rgba(239, 68, 68, 0.17);
 	--progress-soft: rgba(59, 130, 246, 0.2);
 	--done-soft: rgba(16, 185, 129, 0.2);
 	--progress-faint: rgba(59, 130, 246, 0.08);
@@ -222,10 +222,10 @@
 		--ok: #34d399;
 		--prio-low: #fde047;
 		--prio-medium: #fb923c;
-		--prio-high: #fca5a5;
+		--prio-high: #f87171;
 		--prio-low-soft: rgba(250, 204, 21, 0.16);
-		--prio-medium-soft: rgba(249, 115, 22, 0.18);
-		--prio-high-soft: rgba(248, 113, 113, 0.17);
+		--prio-medium-soft: rgba(249, 115, 22, 0.13);
+		--prio-high-soft: rgba(239, 68, 68, 0.22);
 		--today-fg: #0b0f1f; /* --accent is a pale indigo here; --bg would be near-invisible on it */
 		--progress-soft: rgba(96, 165, 250, 0.2);
 		--done-soft: rgba(52, 211, 153, 0.18);
@@ -271,10 +271,10 @@
 	--ok: #34d399;
 	--prio-low: #fde047;
 	--prio-medium: #fb923c;
-	--prio-high: #fca5a5;
+	--prio-high: #f87171;
 	--prio-low-soft: rgba(250, 204, 21, 0.16);
-	--prio-medium-soft: rgba(249, 115, 22, 0.18);
-	--prio-high-soft: rgba(248, 113, 113, 0.17);
+	--prio-medium-soft: rgba(249, 115, 22, 0.13);
+	--prio-high-soft: rgba(239, 68, 68, 0.22);
 	--today-fg: #0b0f1f; /* --accent is a pale indigo here; --bg would be near-invisible on it */
 	--progress-soft: rgba(96, 165, 250, 0.2);
 	--done-soft: rgba(52, 211, 153, 0.18);
