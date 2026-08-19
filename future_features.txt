@@ -1,5 +1,15 @@
 DONT ADD THESE YET
 
-- search tool to search a task accross all boards
-- it should work on all browsers on desktop
-- dark mode
+1- sort tasks by priority, date, name
+2- search by task fields. for example, allow to search by priority or date
+3- replace the annoying browser confirmation pop-ups and add custom pop-ups by the button being pressed
+4- make the login page glass theme by default
+5- move the bottom most widget on the left panel to the bottom. specifically the green dot followed by "User . Live"
+6- color the background of the tasks boxes to match their priority
+7- the light mode (on both themes) are quite bad. certain widgets, for example tasks and columns, merge into each other visually as they are almost completely white
+8- allow renaming of boards and channels
+9- remove the hashtag in front of the channel names
+10- rename the "Channels" category on the left pannel to something less discordy
+11- rename the "Classic" theme to "Erect" and rename the glass theme to "Glassid" (for the funny)
+12- on the calendar, when you hover over a specific day, change the background color of that day slightly
+13- on the calendar, when you click on a task, the link to the task board underlines the 'in' word just before it. fix this and make the link more visible (i.e. by changing the color and/or boldening it)
