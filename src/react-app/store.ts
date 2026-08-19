@@ -8,6 +8,7 @@ import { CLIENT } from "../../app.config";
 import type { AppState, BackupData, ColumnOrder, RestoreResult, Task, TaskPatch, UserId } from "../shared/types";
 import { api, ApiError } from "./api";
 import { recordStateTransition } from "./backups";
+import { pruneDrafts } from "./drafts";
 import { showLoginStyle } from "./style";
 
 export type AuthStatus = "unknown" | "authenticated" | "unauthenticated";
@@ -49,6 +50,8 @@ function applyState(next: AppState, force = false): void {
 	const prev = state.data;
 	if (!force && prev && next.version <= prev.version) return;
 	recordStateTransition(prev, next);
+	// A deleted channel (by either user) takes its unsent draft with it.
+	if (!prev || prev.channels.length !== next.channels.length) pruneDrafts(next.channels.map((c) => c.id));
 	setState({ data: next });
 }
 

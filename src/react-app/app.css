@@ -984,10 +984,17 @@ input[type="date"].input {
 .msg-author {
 	font-weight: 600;
 }
+/* A row: the content, then the delete button right after it — so the button sits at the end
+   of the text or image rather than at the far edge of the log. */
 .msg {
-	position: relative;
-	padding: 2px 32px 2px 8px;
+	display: flex;
+	align-items: flex-start;
+	gap: 2px;
+	padding: 2px 8px;
 	border-radius: var(--radius);
+}
+.msg-body {
+	min-width: 0;
 }
 .msg:hover {
 	background: var(--hover);
@@ -1002,25 +1009,24 @@ input[type="date"].input {
 	text-decoration: underline;
 	text-underline-offset: 2px;
 }
+/* The link carries the fixed cap and the image the relative one: the row's width comes from
+   its content, and a percentage cap on the image would count as none while that is measured. */
 .msg-image-link {
 	display: inline-block;
+	max-width: 480px;
 	margin-top: 4px;
 	line-height: 0;
 }
 .msg-image {
 	display: block;
-	max-width: min(100%, 480px);
+	max-width: 100%;
 	max-height: 360px;
 	border-radius: var(--radius);
 	border: 1px solid var(--border);
 	background: var(--surface-2);
 }
-/* The delete button sits in the row's top-right corner; the anchor carries the position
-   so its confirmation popover opens from the same spot. */
 .msg > .confirm-anchor {
-	position: absolute;
-	top: 2px;
-	right: 4px;
+	flex-shrink: 0;
 }
 .msg-delete {
 	width: 22px;

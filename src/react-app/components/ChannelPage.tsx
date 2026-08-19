@@ -10,6 +10,7 @@ import {
 import { CHANNELS } from "../../../app.config";
 import type { Channel, Message, UserId } from "../../shared/types";
 import { fileUrl } from "../api";
+import { loadDraftImage, loadDraftText, saveDraftImage, saveDraftText } from "../drafts";
 import { formatDateTime, formatMessageTime, userName } from "../format";
 import { firstImageFile, prepareImage } from "../images";
 import { splitLinks } from "../linkify";
@@ -70,13 +71,31 @@ interface ComposerProps {
 }
 
 function Composer({ channel, onPosted }: ComposerProps) {
-	const [text, setText] = useState("");
+	// Text and image start from the channel's saved draft and are written back on every change,
+	// so leaving the channel (or the page) and coming back finds them where they were left.
+	const [text, setTextState] = useState(() => loadDraftText(channel.id));
 	/** Pending image as a base64 data URL (also used as the preview). */
-	const [image, setImage] = useState<string | null>(null);
+	const [image, setImageState] = useState<string | null>(() => loadDraftImage(channel.id));
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 	const textarea = useRef<HTMLTextAreaElement>(null);
 	const fileInput = useRef<HTMLInputElement>(null);
+
+	function setText(value: string): void {
+		setTextState(value);
+		saveDraftText(channel.id, value);
+	}
+
+	function setImage(value: string | null): void {
+		setImageState(value);
+		saveDraftImage(channel.id, value);
+	}
+
+	// A restored draft opens with the caret at its end, ready to carry on typing.
+	useLayoutEffect(() => {
+		const el = textarea.current;
+		if (el && el.value) el.setSelectionRange(el.value.length, el.value.length);
+	}, []);
 
 	// Grow with the content up to the CSS max-height, then scroll.
 	useLayoutEffect(() => {
@@ -250,17 +269,19 @@ export function ChannelPage({ channel, messages, user }: Props) {
 						</div>
 						{group.messages.map((message) => (
 							<div key={message.id} className="msg">
-								{message.text && <MessageText text={message.text} />}
-								{message.imageId && (
-									<a className="msg-image-link" href={fileUrl(message.imageId)} target="_blank" rel="noopener noreferrer">
-										<img
-											className="msg-image"
-											src={fileUrl(message.imageId)}
-											alt={`Image posted by ${userName(message.author)}`}
-											onLoad={onImageLoad}
-										/>
-									</a>
-								)}
+								<div className="msg-body">
+									{message.text && <MessageText text={message.text} />}
+									{message.imageId && (
+										<a className="msg-image-link" href={fileUrl(message.imageId)} target="_blank" rel="noopener noreferrer">
+											<img
+												className="msg-image"
+												src={fileUrl(message.imageId)}
+												alt={`Image posted by ${userName(message.author)}`}
+												onLoad={onImageLoad}
+											/>
+										</a>
+									)}
+								</div>
 								{message.author === user && (
 									<ConfirmButton
 										className="msg-delete"

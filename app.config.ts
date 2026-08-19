@@ -151,5 +151,7 @@ export const CLIENT = {
 		styleChoices: "kanban:style-choices",
 		/** The board Sort control's choice (one of TASK_SORTS). */
 		taskSort: "kanban:task-sort",
+		/** Unsent chat drafts, as a JSON object keyed by channel id. */
+		chatDrafts: "kanban:chat-drafts:v1",
 	},
 };

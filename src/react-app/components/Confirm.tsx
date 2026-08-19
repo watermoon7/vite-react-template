@@ -16,22 +16,24 @@ import {
 
 /**
  * Preferred vertical side of the trigger the popover opens on, and which edge it aligns
- * to. The side flips if the preferred one has no room inside the nearest scrolling ancestor
- * (a popover clipped by a scroll container is unusable).
+ * to. Either flips if the preferred one has no room inside the nearest scrolling ancestor
+ * (a popover clipped by a scroll container is unusable): "end" hangs leftwards from the
+ * trigger's right edge and "start" rightwards from its left edge.
  */
 export type Placement = "below-end" | "below-start" | "above-end" | "above-start";
 type Side = "above" | "below";
+type Align = "start" | "end";
 
 /** Gap between trigger and popover; keep in step with .confirm-pop.above/.below in app.css. */
 const GAP_PX = 6;
 
 /** The box a popover must stay within: its nearest ancestor that clips overflow, else the viewport. */
-function clipBox(from: Element): { top: number; bottom: number } {
+function clipBox(from: Element): { top: number; bottom: number; left: number; right: number } {
 	for (let el = from.parentElement; el; el = el.parentElement) {
 		const overflowY = getComputedStyle(el).overflowY;
 		if (overflowY !== "visible") return el.getBoundingClientRect();
 	}
-	return { top: 0, bottom: window.innerHeight };
+	return { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth };
 }
 
 interface PopoverProps {
@@ -55,28 +57,36 @@ export function ConfirmPopover({ message, detail, confirmLabel, danger = false, 
 	if (!confirmLabel) throw new Error("ConfirmPopover needs a confirmLabel");
 	const root = useRef<HTMLDivElement>(null);
 	const confirmButton = useRef<HTMLButtonElement>(null);
-	const [preferredSide, align] = placement.split("-") as [Side, "start" | "end"];
-	/** Side actually used, decided once from the room available on first layout. */
+	const [preferredSide, preferredAlign] = placement.split("-") as [Side, Align];
+	/** Side and alignment actually used, decided once from the room available on first layout. */
 	const decidedSide = useRef<Side | null>(null);
+	const decidedAlign = useRef<Align | null>(null);
 
-	// Before paint: if the preferred side would be clipped, open on whichever side has more
-	// room. Applied straight to the element (not via state) and re-applied after every
-	// render, since the rendered class name only knows the preferred side.
+	// Before paint: if the preferred side or alignment would be clipped, use whichever has
+	// more room. Applied straight to the element (not via state) and re-applied after every
+	// render, since the rendered class name only knows the preferred placement.
 	useLayoutEffect(() => {
 		const el = root.current;
 		const anchor = el?.closest(".confirm-anchor");
 		if (!el || !anchor) return;
-		if (decidedSide.current === null) {
+		if (decidedSide.current === null || decidedAlign.current === null) {
 			const clip = clipBox(anchor);
 			const anchorBox = anchor.getBoundingClientRect();
-			const needed = el.getBoundingClientRect().height + GAP_PX;
+			const popBox = el.getBoundingClientRect();
+			const needed = popBox.height + GAP_PX;
 			const roomBelow = clip.bottom - anchorBox.bottom;
 			const roomAbove = anchorBox.top - clip.top;
-			const fits = preferredSide === "below" ? roomBelow >= needed : roomAbove >= needed;
-			decidedSide.current = fits ? preferredSide : roomBelow >= roomAbove ? "below" : "above";
+			const fitsSide = preferredSide === "below" ? roomBelow >= needed : roomAbove >= needed;
+			decidedSide.current = fitsSide ? preferredSide : roomBelow >= roomAbove ? "below" : "above";
+			const roomEnd = anchorBox.right - clip.left;
+			const roomStart = clip.right - anchorBox.left;
+			const fitsAlign = preferredAlign === "end" ? roomEnd >= popBox.width : roomStart >= popBox.width;
+			decidedAlign.current = fitsAlign ? preferredAlign : roomEnd >= roomStart ? "end" : "start";
 		}
 		el.classList.toggle("above", decidedSide.current === "above");
 		el.classList.toggle("below", decidedSide.current === "below");
+		el.classList.toggle("end", decidedAlign.current === "end");
+		el.classList.toggle("start", decidedAlign.current === "start");
 	});
 
 	useEffect(() => {
@@ -101,7 +111,7 @@ export function ConfirmPopover({ message, detail, confirmLabel, danger = false, 
 	}
 
 	return (
-		<div ref={root} className={`confirm-pop ${preferredSide} ${align}`} role="alertdialog" aria-label={message} onKeyDown={onKey}>
+		<div ref={root} className={`confirm-pop ${preferredSide} ${preferredAlign}`} role="alertdialog" aria-label={message} onKeyDown={onKey}>
 			<p className="confirm-message">{message}</p>
 			{detail && <p className="confirm-detail muted small">{detail}</p>}
 			<div className="confirm-actions">
