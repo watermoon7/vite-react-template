@@ -14,11 +14,12 @@ import {
 	type UserId,
 } from "../../shared/types";
 import { userName } from "../format";
+import { setMuted, useMusic } from "../music";
 import { navigate, routeToHash, type Route } from "../router";
 import { FILTER_HELP, searchTasks } from "../search";
 import { createBoard, createChannel, deleteBoard, deleteChannel, renameBoard, renameChannel } from "../store";
 import { ConfirmButton } from "./Confirm";
-import { PencilIcon, PlusIcon } from "./icons";
+import { PencilIcon, PlusIcon, SpeakerIcon } from "./icons";
 import { TaskMeta } from "./TaskCard";
 import { VoiceRoom } from "./VoiceRoom";
 
@@ -84,6 +85,7 @@ function NameInput({ placeholder, initialValue = "", onSubmit, onCancel }: NameI
 }
 
 export function Sidebar({ route, boards, tasks, channels, messages, songs, playback, user, live }: Props) {
+	const music = useMusic();
 	const [query, setQuery] = useState("");
 	const results = useMemo(() => searchTasks(query, boards, tasks), [query, boards, tasks]);
 	const resultList = useRef<HTMLDivElement>(null);
@@ -371,6 +373,15 @@ export function Sidebar({ route, boards, tasks, channels, messages, songs, playb
 							<span>Music</span>
 							{nowPlaying && <span className="nav-subtitle muted small">{nowPlaying}</span>}
 						</a>
+						<button
+							className={"icon-btn nav-mute" + (music.muted ? " on" : "")}
+							title={music.muted ? "Unmute music" : "Mute music"}
+							aria-label={music.muted ? "Unmute music" : "Mute music"}
+							aria-pressed={music.muted}
+							onClick={() => setMuted(!music.muted)}
+						>
+							<SpeakerIcon size={15} off={music.muted} />
+						</button>
 					</li>
 					<li className={"nav-item" + (route.kind === "settings" ? " active" : "")}>
 						<a href={routeToHash({ kind: "settings" })} className="nav-link">

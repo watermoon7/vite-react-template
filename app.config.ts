@@ -159,6 +159,14 @@ export const MUSIC = {
 	skipSeconds: 10,
 	/** Pressing "previous" this far into a song restarts it instead of going back one. */
 	previousRestartsAfterSeconds: 3,
+	/**
+	 * Power the volume slider's position is raised to before it reaches the player. Loudness
+	 * is heard roughly as the cube root of amplitude, so a slider wired straight to the
+	 * element's (linear) volume crams every usable level into its bottom quarter; this is the
+	 * "audio taper" of a physical volume knob, which spreads them over the whole travel.
+	 * Higher values push the usable levels further up the slider.
+	 */
+	volumeCurveExponent: 3,
 };
 
 /** Interface scale ("zoom"): scales the whole app, like the browser's Ctrl +/-. */
@@ -222,5 +230,7 @@ export const CLIENT = {
 		chatDrafts: "kanban:chat-drafts:v1",
 		/** Player volume (0-1) in this browser; volume is per-listener, not shared. */
 		musicVolume: "kanban:music-volume",
+		/** Whether the player is muted in this browser; muting is per-listener, not shared. */
+		musicMuted: "kanban:music-muted",
 	},
 };

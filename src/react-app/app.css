@@ -1533,6 +1533,21 @@ input[type="date"].input {
 	color: inherit;
 	opacity: 0.75;
 }
+/* The mute toggle stays visible, unlike the hover-only row actions: a player that has been
+   silenced has to say so without being hovered, or the silence looks like a fault. */
+.nav-mute {
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	margin-right: 4px;
+}
+.nav-mute.on {
+	color: var(--danger);
+}
+.nav-mute.on:hover {
+	background: var(--danger-soft);
+	color: var(--danger);
+}
 
 /* ---------- Music ---------- */
 .music {
