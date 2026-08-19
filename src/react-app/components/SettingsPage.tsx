@@ -1,6 +1,6 @@
 /** Account (sign out) and local backups (snapshots, download, import, restore). */
 import { useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
-import { CLIENT, DISPLAY, THEMES } from "../../../app.config";
+import { CLIENT, DISPLAY, STYLES, THEMES } from "../../../app.config";
 import type { AppState, BackupData, UserId } from "../../shared/types";
 import {
 	deleteSnapshot,
@@ -16,6 +16,7 @@ import {
 import { formatDateTime, formatRelative, userName } from "../format";
 import { canDecrease, canIncrease, getScale, resetScale, stepScale, subscribeScale } from "../scale";
 import { logout, restoreBackup } from "../store";
+import { getStyle, setStyle, subscribeStyle, type StylePreference } from "../style";
 import { getTheme, setTheme, subscribeTheme, type ThemePreference } from "../theme";
 import { Segmented } from "./Segmented";
 
@@ -35,6 +36,11 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = THEMES.map((t
 	label: t.label,
 }));
 
+const STYLE_OPTIONS: { value: StylePreference; label: string }[] = STYLES.map((s) => ({
+	value: s.id,
+	label: s.label,
+}));
+
 function fileStem(prefix: string, iso: string): string {
 	return `${prefix}-${iso.slice(0, 16).replace(/[:T]/g, "-")}`;
 }
@@ -43,6 +49,7 @@ export function SettingsPage({ user, data }: Props) {
 	const snapshots = useSyncExternalStore(subscribeSnapshots, listSnapshots);
 	const scale = useSyncExternalStore(subscribeScale, getScale);
 	const theme = useSyncExternalStore(subscribeTheme, getTheme);
+	const style = useSyncExternalStore(subscribeStyle, getStyle);
 	const [message, setMessage] = useState<string | null>(null);
 	const fileInput = useRef<HTMLInputElement>(null);
 
@@ -132,6 +139,14 @@ export function SettingsPage({ user, data }: Props) {
 						<button className="btn" onClick={resetScale} disabled={scale === DISPLAY.defaultScale}>
 							Reset
 						</button>
+					</div>
+					<div className="field">
+						<span className="label">Style</span>
+						<Segmented label="Style" options={STYLE_OPTIONS} value={style} onChange={setStyle} />
+						<p className="muted small">
+							“Glass” is a translucent look over a soft colour backdrop; “Classic” is the original flat look.
+							Remembered for you in this browser.
+						</p>
 					</div>
 					<div className="field">
 						<span className="label">Theme</span>

@@ -1,5 +1,5 @@
 /** Application shell: session gate, hash routing, sidebar + main pane. */
-import { useEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { CLIENT } from "../../app.config";
 import type { AppState } from "../shared/types";
 import { BoardView } from "./components/BoardView";
@@ -9,6 +9,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
 import { lastRoute, parseHash, routeToHash, useHash, type Route } from "./router";
 import { bootstrap, dismissError, useStore } from "./store";
+import { bindStyleUser } from "./style";
 
 /** Turns the URL route into one that points at something that exists. */
 function resolveRoute(requested: Route, data: AppState): Route {
@@ -33,6 +34,12 @@ export default function App() {
 	useEffect(() => {
 		void bootstrap();
 	}, []);
+
+	// The visual style depends on who is signed in; a layout effect applies it before the
+	// first paint of the signed-in app rather than one frame later.
+	useLayoutEffect(() => {
+		if (store.user) bindStyleUser(store.user);
+	}, [store.user]);
 
 	const data = store.data;
 	const route = useMemo(() => (data ? resolveRoute(parseHash(hash), data) : null), [hash, data]);

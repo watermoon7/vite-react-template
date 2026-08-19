@@ -3,11 +3,25 @@
  * Everything tunable lives here — nothing below should be hardcoded elsewhere.
  */
 
-/** The two users. `passwordSecret` names the Worker secret / .dev.vars key holding that user's password. */
-export const USERS = [
-	{ id: "will", name: "Will", passwordSecret: "PASSWORD_WILL" },
-	{ id: "theo", name: "Theo", passwordSecret: "PASSWORD_THEO" },
+/**
+ * Visual styles offered in Settings. "classic" is the original flat look; "glass" is a
+ * translucent, blurred look over a soft colour backdrop. Both follow the light/dark theme.
+ */
+export const STYLES = [
+	{ id: "classic", label: "Classic" },
+	{ id: "glass", label: "Glass" },
 ] as const;
+
+type StyleId = (typeof STYLES)[number]["id"];
+
+/**
+ * The two users. `passwordSecret` names the Worker secret / .dev.vars key holding that
+ * user's password. `defaultStyle` applies until the user picks a style in Settings.
+ */
+export const USERS = [
+	{ id: "will", name: "Will", passwordSecret: "PASSWORD_WILL", defaultStyle: "classic" },
+	{ id: "theo", name: "Theo", passwordSecret: "PASSWORD_THEO", defaultStyle: "glass" },
+] as const satisfies readonly { id: string; name: string; passwordSecret: string; defaultStyle: StyleId }[];
 
 /** Board columns, in display order. The first column receives newly created tasks. */
 export const COLUMNS = [
@@ -87,5 +101,9 @@ export const CLIENT = {
 		scale: "kanban:scale",
 		/** Duplicated in the pre-paint script in index.html — change both together. */
 		theme: "kanban:theme",
+		/** Style last applied in this browser; read by the pre-paint script in index.html — change both together. */
+		style: "kanban:style",
+		/** Each user's chosen style in this browser, as a JSON object keyed by user id. */
+		styleChoices: "kanban:style-choices",
 	},
 };
