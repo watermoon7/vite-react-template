@@ -136,6 +136,9 @@
 	   pale backdrop, so the edge is a slate hairline here; the dark blocks use the lit rim. */
 	--glass-edge: rgba(15, 23, 42, 0.1);
 	--glass-highlight: rgba(255, 255, 255, 0.95);
+	/* Popovers float over other text, so they are nearly opaque; blur cannot be relied on
+	   inside an ancestor that already blurs (the sidebar). */
+	--popover-bg: rgba(255, 255, 255, 0.94);
 	--text: #0f172a;
 	--text-muted: #5b6577;
 	--accent: #4f46e5;
@@ -186,6 +189,7 @@
 		--border-strong: rgba(255, 255, 255, 0.16);
 		--glass-edge: rgba(255, 255, 255, 0.11);
 		--glass-highlight: rgba(255, 255, 255, 0.14);
+		--popover-bg: rgba(30, 33, 52, 0.96);
 		--text: #e7eaf3;
 		--text-muted: #97a1b6;
 		--accent: #a5b4fc;
@@ -229,6 +233,7 @@
 	--border-strong: rgba(255, 255, 255, 0.16);
 	--glass-edge: rgba(255, 255, 255, 0.11);
 	--glass-highlight: rgba(255, 255, 255, 0.14);
+	--popover-bg: rgba(30, 33, 52, 0.96);
 	--text: #e7eaf3;
 	--text-muted: #97a1b6;
 	--accent: #a5b4fc;
@@ -581,19 +586,6 @@ input[type="date"].input {
 	font-weight: 600;
 	color: var(--text-muted);
 }
-.nav-channel {
-	display: flex;
-	align-items: baseline;
-	gap: 5px;
-}
-.nav-hash {
-	color: var(--text-muted);
-	font-weight: 500;
-	flex-shrink: 0;
-}
-.nav-item.active .nav-hash {
-	color: inherit;
-}
 .nav-item {
 	display: flex;
 	align-items: center;
@@ -617,23 +609,32 @@ input[type="date"].input {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.nav-delete {
+/* Row actions (rename, delete) appear on hover, on focus, and while their popover is open. */
+.nav-action {
 	width: 24px;
 	height: 24px;
-	margin-right: 4px;
+	flex-shrink: 0;
 	border-radius: var(--radius);
 	color: var(--text-muted);
 	font-size: 16px;
 	line-height: 1;
 	opacity: 0;
 }
-.nav-item:hover .nav-delete,
-.nav-delete:focus-visible {
+.nav-item:hover .nav-action,
+.nav-action:focus-visible,
+.nav-item:has(.confirm-pop) .nav-action {
 	opacity: 1;
+}
+.nav-action:hover {
+	background: var(--hover);
+	color: var(--text);
 }
 .nav-delete:hover {
 	background: var(--danger-soft);
 	color: var(--danger);
+}
+.nav-item > .confirm-anchor {
+	margin-right: 4px;
 }
 .nav-input {
 	width: 100%;
@@ -649,14 +650,15 @@ input[type="date"].input {
 	font-size: 13px;
 }
 .sidebar-footer {
-	margin-top: auto;
 	padding-top: 12px;
 }
+/* Pinned to the bottom of the panel, below everything else. */
 .sidebar-status {
 	display: flex;
 	align-items: center;
 	gap: 7px;
-	padding: 10px 8px 2px;
+	margin-top: auto;
+	padding: 14px 8px 2px;
 	font-size: 12px;
 	color: var(--text-muted);
 }
@@ -716,7 +718,6 @@ input[type="date"].input {
 	border-bottom: 1px solid var(--border);
 	flex-shrink: 0;
 }
-.board-title,
 .page-title {
 	font-size: 16px;
 	font-weight: 600;
@@ -725,16 +726,17 @@ input[type="date"].input {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
-.board-title {
+/* Board and channel titles: click to rename in place (EditableTitle). */
+.editable-title {
 	cursor: text;
 	padding: 2px 6px;
 	margin-left: -6px;
 	border-radius: var(--radius);
 }
-.board-title:hover {
+.editable-title:hover {
 	background: var(--hover);
 }
-.board-title-input {
+.editable-title-input {
 	font-size: 16px;
 	font-weight: 600;
 	padding: 2px 6px;
@@ -743,6 +745,15 @@ input[type="date"].input {
 	border-radius: var(--radius);
 	outline: none;
 	min-width: 240px;
+}
+.board-sort {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: 6px;
+}
+.board-sort .seg {
+	align-self: center;
 }
 .board-body {
 	flex: 1;
@@ -947,11 +958,6 @@ input[type="date"].input {
 	max-width: 900px;
 }
 /* ---------- Channels ---------- */
-.chat-hash {
-	color: var(--text-muted);
-	font-weight: 500;
-	margin-right: 3px;
-}
 .chat-log {
 	flex: 1;
 	overflow-y: auto;
@@ -1009,10 +1015,14 @@ input[type="date"].input {
 	border: 1px solid var(--border);
 	background: var(--surface-2);
 }
-.msg-delete {
+/* The delete button sits in the row's top-right corner; the anchor carries the position
+   so its confirmation popover opens from the same spot. */
+.msg > .confirm-anchor {
 	position: absolute;
 	top: 2px;
 	right: 4px;
+}
+.msg-delete {
 	width: 22px;
 	height: 22px;
 	border-radius: var(--radius);
@@ -1022,7 +1032,8 @@ input[type="date"].input {
 	opacity: 0;
 }
 .msg:hover .msg-delete,
-.msg-delete:focus-visible {
+.msg-delete:focus-visible,
+.msg:has(.confirm-pop) .msg-delete {
 	opacity: 1;
 }
 .msg-delete:hover {
@@ -1278,6 +1289,63 @@ input[type="date"].input {
 	border-left-color: var(--border);
 }
 
+/* ---------- Confirmation popover ----------
+   Rendered by Confirm.tsx next to the button that opened it. .confirm-anchor wraps the
+   button and positions the popover; the side/align classes come from the placement. */
+.confirm-anchor {
+	position: relative;
+	display: inline-flex;
+}
+.confirm-pop {
+	position: absolute;
+	z-index: 20;
+	width: max-content;
+	max-width: 280px;
+	padding: 10px 12px;
+	background: var(--surface-1);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	box-shadow: 0 8px 24px var(--shadow-color);
+	font-size: 13px;
+	line-height: 1.4;
+	text-align: left;
+	white-space: normal;
+	cursor: default;
+}
+.confirm-pop.below {
+	top: calc(100% + 6px);
+}
+.confirm-pop.above {
+	bottom: calc(100% + 6px);
+}
+.confirm-pop.end {
+	right: 0;
+}
+.confirm-pop.start {
+	left: 0;
+}
+.confirm-message {
+	font-weight: 500;
+	overflow-wrap: anywhere;
+}
+.confirm-detail {
+	margin-top: 3px;
+}
+.confirm-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 6px;
+	margin-top: 10px;
+}
+.confirm-actions .btn {
+	height: 26px;
+	padding: 0 9px;
+}
+/* The sidebar clips horizontally (it scrolls vertically), so its popovers must fit inside it. */
+.sidebar .confirm-pop {
+	max-width: calc(var(--sidebar-width) - 32px);
+}
+
 /* ---------- Login ---------- */
 .login {
 	width: 320px;
@@ -1478,6 +1546,17 @@ input[type="date"].input {
 	border-color: var(--glass-edge);
 	border-radius: var(--radius-lg);
 	padding: 32px;
+	box-shadow:
+		var(--panel-shadow),
+		inset 0 1px 0 var(--glass-highlight);
+	-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+	backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+}
+
+:where([data-style="glass"]) .confirm-pop {
+	background: var(--popover-bg);
+	border-color: var(--glass-edge);
+	border-radius: var(--radius-md);
 	box-shadow:
 		var(--panel-shadow),
 		inset 0 1px 0 var(--glass-highlight);
