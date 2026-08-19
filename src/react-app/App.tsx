@@ -4,33 +4,42 @@ import { CLIENT } from "../../app.config";
 import type { AppState } from "../shared/types";
 import { BoardView } from "./components/BoardView";
 import { CalendarPage } from "./components/CalendarPage";
+import { ChannelPage } from "./components/ChannelPage";
 import { Login } from "./components/Login";
-import { NotesPage } from "./components/NotesPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
 import { lastRoute, parseHash, routeToHash, useHash, type Route } from "./router";
 import { bootstrap, dismissError, useStore } from "./store";
 import { bindStyleUser } from "./style";
 
+/** True when `route` points at something that exists in `data` (calendar and settings always do). */
+function routeExists(route: Route, data: AppState): boolean {
+	switch (route.kind) {
+		case "board":
+			return data.boards.some((b) => b.id === route.boardId);
+		case "channel":
+			return data.channels.some((c) => c.id === route.channelId);
+		case "calendar":
+		case "settings":
+			return true;
+		default:
+			return false;
+	}
+}
+
 /** Turns the URL route into one that points at something that exists. */
 function resolveRoute(requested: Route, data: AppState): Route {
-	const exists = (id: string) => data.boards.some((b) => b.id === id);
-	if (requested.kind === "board" && exists(requested.boardId)) {
-		if (requested.taskId && !data.tasks.some((t) => t.id === requested.taskId)) {
+	if (routeExists(requested, data)) {
+		// A task that no longer exists (possibly deleted by the other user) closes the editor.
+		const taskExists = (id: string) => data.tasks.some((t) => t.id === id);
+		if (requested.kind === "board" && requested.taskId && !taskExists(requested.taskId)) {
 			return { kind: "board", boardId: requested.boardId };
 		}
+		if (requested.kind === "calendar" && requested.taskId && !taskExists(requested.taskId)) return { kind: "calendar" };
 		return requested;
 	}
-	if (requested.kind === "calendar") {
-		if (requested.taskId && !data.tasks.some((t) => t.id === requested.taskId)) return { kind: "calendar" };
-		return requested;
-	}
-	if (requested.kind === "notes" || requested.kind === "settings") return requested;
 	const remembered = lastRoute();
-	if (remembered && remembered.kind === "board" && exists(remembered.boardId)) return remembered;
-	if (remembered && (remembered.kind === "notes" || remembered.kind === "calendar" || remembered.kind === "settings")) {
-		return remembered;
-	}
+	if (remembered && routeExists(remembered, data)) return remembered;
 	return data.boards.length > 0 ? { kind: "board", boardId: data.boards[0].id } : { kind: "home" };
 }
 
@@ -61,10 +70,19 @@ export default function App() {
 	}
 
 	const board = route.kind === "board" ? data.boards.find((b) => b.id === route.boardId) : undefined;
+	const channel = route.kind === "channel" ? data.channels.find((c) => c.id === route.channelId) : undefined;
 
 	return (
 		<div className="app">
-			<Sidebar route={route} boards={data.boards} tasks={data.tasks} user={store.user} live={store.live} />
+			<Sidebar
+				route={route}
+				boards={data.boards}
+				tasks={data.tasks}
+				channels={data.channels}
+				messages={data.messages}
+				user={store.user}
+				live={store.live}
+			/>
 			<main className="main">
 				{store.error && (
 					<div className="banner" role="alert">
@@ -82,8 +100,13 @@ export default function App() {
 						selectedId={route.kind === "board" ? (route.taskId ?? null) : null}
 					/>
 				)}
-				{route.kind === "notes" && (
-					<NotesPage key={route.scope} scope={route.scope} content={data.notes[route.scope]} />
+				{channel && (
+					<ChannelPage
+						key={channel.id}
+						channel={channel}
+						messages={data.messages.filter((m) => m.channelId === channel.id)}
+						user={store.user}
+					/>
 				)}
 				{route.kind === "calendar" && (
 					<CalendarPage boards={data.boards} tasks={data.tasks} selectedId={route.taskId ?? null} />

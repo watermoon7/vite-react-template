@@ -61,8 +61,28 @@ export const AUTH = {
 export const LIMITS = {
 	boardNameMaxLength: 120,
 	taskTextMaxLength: 20_000,
-	notesMaxLength: 200_000,
+	channelNameMaxLength: 60,
+	messageTextMaxLength: 4_000,
 	restoreMaxItems: 5_000,
+};
+
+/** Text channels: Discord-style message logs shared by both users. */
+export const CHANNELS = {
+	/** Image formats accepted by the server (checked by content, not by the declared type). */
+	imageTypes: ["image/png", "image/jpeg", "image/gif", "image/webp"],
+	/**
+	 * Largest image the server stores, in bytes. Images live in the Durable Object's SQLite,
+	 * which caps a single row at 2 MB, so keep a margin below that.
+	 */
+	imageMaxBytes: 1_500_000,
+	/** Longest edge, in pixels, an image is scaled down to when it has to be re-encoded before upload. */
+	imageMaxDimension: 1600,
+	/** JPEG quality (0-1) used when an image is re-encoded before upload. */
+	imageJpegQuality: 0.85,
+	/** Consecutive messages by the same author within this many minutes share one author/time header. */
+	groupWindowMinutes: 5,
+	/** The log keeps following new messages while scrolled within this many pixels of the bottom. */
+	stickToBottomPx: 40,
 };
 
 /** Interface scale ("zoom"): scales the whole app, like the browser's Ctrl +/-. */

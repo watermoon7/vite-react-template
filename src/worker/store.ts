@@ -1,7 +1,7 @@
 /**
- * KanbanStore — a single SQLite-backed Durable Object holding all boards, tasks and notes.
- * Exposes typed RPC methods for the Worker and a WebSocket endpoint that pushes the
- * full (per-user) state to every connected client after each mutation.
+ * KanbanStore — a single SQLite-backed Durable Object holding all boards, tasks, channels,
+ * messages and message images. Exposes typed RPC methods for the Worker and a WebSocket
+ * endpoint that pushes the full state to every connected client after each mutation.
  */
 import { DurableObject } from "cloudflare:workers";
 import { AUTH, COLUMNS, DEFAULT_ASSIGNEE } from "../../app.config";
@@ -10,16 +10,25 @@ import {
 	type AppState,
 	type BackupData,
 	type Board,
+	type Channel,
 	type ColumnOrder,
-	type NotesScope,
+	type Message,
 	type RestoreResult,
 	type Task,
 	type TaskPatch,
 	type UserId,
 } from "../shared/types";
 
-/** Thrown by mutations that reference a missing board/task; the Worker maps it to 404. */
+/** Thrown by mutations that reference a missing board/task/channel/message; the Worker maps it to 404. */
 export const NOT_FOUND = "NOT_FOUND";
+/** Thrown when a user tries to change something that is not theirs; the Worker maps it to 403. */
+export const FORBIDDEN = "FORBIDDEN";
+
+/** An image attached to a message, as stored and as served. */
+export interface StoredFile {
+	mime: string;
+	bytes: ArrayBuffer;
+}
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL);
@@ -33,8 +42,14 @@ CREATE TABLE IF NOT EXISTS tasks (
 	due_date TEXT, assignee TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
 	updated_by TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_board_idx ON tasks (board_id);
-CREATE TABLE IF NOT EXISTS notes (
-	key TEXT PRIMARY KEY, content TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS channels (
+	id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS messages (
+	id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, author TEXT NOT NULL, text TEXT NOT NULL DEFAULT '',
+	image_id TEXT, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS messages_channel_idx ON messages (channel_id);
+CREATE TABLE IF NOT EXISTS files (
+	id TEXT PRIMARY KEY, mime TEXT NOT NULL, bytes BLOB NOT NULL, created_at TEXT NOT NULL, created_by TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS login_failures (
 	ip TEXT PRIMARY KEY, count INTEGER NOT NULL, window_start INTEGER NOT NULL);
 `;
@@ -55,8 +70,33 @@ type TaskRow = {
 	updated_by: UserId;
 };
 
+type ChannelRow = { id: string; name: string; position: number; created_at: string };
+type MessageRow = {
+	id: string;
+	channel_id: string;
+	author: UserId;
+	text: string;
+	image_id: string | null;
+	created_at: string;
+};
+
 function rowToBoard(r: BoardRow): Board {
 	return { id: r.id, name: r.name, position: r.position, createdAt: r.created_at, updatedAt: r.updated_at };
+}
+
+function rowToChannel(r: ChannelRow): Channel {
+	return { id: r.id, name: r.name, position: r.position, createdAt: r.created_at };
+}
+
+function rowToMessage(r: MessageRow): Message {
+	return {
+		id: r.id,
+		channelId: r.channel_id,
+		author: r.author,
+		text: r.text,
+		imageId: r.image_id,
+		createdAt: r.created_at,
+	};
 }
 
 function rowToTask(r: TaskRow): Task {
@@ -99,7 +139,7 @@ export class KanbanStore extends DurableObject<Env> {
 		}
 		const pair = new WebSocketPair();
 		const [client, server] = [pair[0], pair[1]];
-		// Tag the socket with the user so broadcasts can send per-user state (personal notes).
+		// Tag the socket with the user so broadcasts can be built per user.
 		this.ctx.acceptWebSocket(server, [user]);
 		return new Response(null, { status: 101, webSocket: client });
 	}
@@ -147,22 +187,29 @@ export class KanbanStore extends DurableObject<Env> {
 		return this.sql.exec<{ value: number }>("SELECT value FROM meta WHERE key = 'version'").one().value;
 	}
 
-	private readNote(key: string): string {
-		const rows = this.sql.exec<{ content: string }>("SELECT content FROM notes WHERE key = ?", key).toArray();
-		return rows.length > 0 ? rows[0].content : "";
-	}
-
-	/** Full state as seen by `user` (personal notes are theirs). */
+	/** Full state as seen by `user` (currently the same for everyone). */
 	getState(user: UserId): AppState {
 		if (!USER_IDS.includes(user)) throw new Error("unknown user");
 		const boards = this.sql.exec<BoardRow>("SELECT * FROM boards ORDER BY position, created_at").toArray();
 		const tasks = this.sql.exec<TaskRow>("SELECT * FROM tasks ORDER BY position, created_at").toArray();
+		const channels = this.sql.exec<ChannelRow>("SELECT * FROM channels ORDER BY position, created_at").toArray();
+		// rowid breaks ties between messages created in the same millisecond.
+		const messages = this.sql.exec<MessageRow>("SELECT * FROM messages ORDER BY created_at, rowid").toArray();
 		return {
 			version: this.readVersion(),
 			boards: boards.map(rowToBoard),
 			tasks: tasks.map(rowToTask),
-			notes: { shared: this.readNote("shared"), personal: this.readNote(`personal:${user}`) },
+			channels: channels.map(rowToChannel),
+			messages: messages.map(rowToMessage),
 		};
+	}
+
+	/** An image attached to a message, or null if there is no such file. */
+	getFile(id: string): StoredFile | null {
+		if (!id) return null;
+		const rows = this.sql.exec<{ mime: string; bytes: ArrayBuffer }>("SELECT mime, bytes FROM files WHERE id = ?", id).toArray();
+		if (rows.length === 0) return null;
+		return { mime: rows[0].mime, bytes: rows[0].bytes };
 	}
 
 	// ---------- Mutations ----------
@@ -281,14 +328,66 @@ export class KanbanStore extends DurableObject<Env> {
 		});
 	}
 
-	saveNotes(user: UserId, scope: NotesScope, content: string): AppState {
-		const key = scope === "shared" ? "shared" : `personal:${user}`;
+	// ---------- Channels ----------
+
+	private channelExists(id: string): boolean {
+		return this.sql.exec("SELECT 1 FROM channels WHERE id = ?", id).toArray().length > 0;
+	}
+
+	createChannel(user: UserId, name: string): { state: AppState; channelId: string } {
+		const id = crypto.randomUUID();
+		const now = new Date().toISOString();
+		const state = this.commit(user, () => {
+			const next = this.sql
+				.exec<{ p: number }>("SELECT COALESCE(MAX(position), -1) + 1 AS p FROM channels")
+				.one().p;
+			this.sql.exec("INSERT INTO channels (id, name, position, created_at) VALUES (?, ?, ?, ?)", id, name, next, now);
+		});
+		return { state, channelId: id };
+	}
+
+	/** Deletes a channel with all of its messages and their images. */
+	deleteChannel(user: UserId, id: string): AppState {
 		return this.commit(user, () => {
+			if (!this.channelExists(id)) throw new Error(NOT_FOUND);
+			this.sql.exec("DELETE FROM files WHERE id IN (SELECT image_id FROM messages WHERE channel_id = ?)", id);
+			this.sql.exec("DELETE FROM messages WHERE channel_id = ?", id);
+			this.sql.exec("DELETE FROM channels WHERE id = ?", id);
+		});
+	}
+
+	/** Appends a message (text and/or one image, already validated) to a channel. */
+	postMessage(user: UserId, channelId: string, text: string, image: StoredFile | null): { state: AppState; messageId: string } {
+		if (!text && !image) throw new Error("empty message");
+		const id = crypto.randomUUID();
+		const imageId = image ? crypto.randomUUID() : null;
+		const now = new Date().toISOString();
+		const state = this.commit(user, () => {
+			if (!this.channelExists(channelId)) throw new Error(NOT_FOUND);
+			if (image && imageId) {
+				this.sql.exec(
+					"INSERT INTO files (id, mime, bytes, created_at, created_by) VALUES (?, ?, ?, ?, ?)",
+					imageId, image.mime, image.bytes, now, user,
+				);
+			}
 			this.sql.exec(
-				`INSERT INTO notes (key, content, updated_at, updated_by) VALUES (?, ?, ?, ?)
-				 ON CONFLICT(key) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
-				key, content, new Date().toISOString(), user,
+				"INSERT INTO messages (id, channel_id, author, text, image_id, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+				id, channelId, user, text, imageId, now,
 			);
+		});
+		return { state, messageId: id };
+	}
+
+	/** Deletes one of the caller's own messages (and its image). */
+	deleteMessage(user: UserId, id: string): AppState {
+		return this.commit(user, () => {
+			const rows = this.sql
+				.exec<{ author: UserId; image_id: string | null }>("SELECT author, image_id FROM messages WHERE id = ?", id)
+				.toArray();
+			if (rows.length === 0) throw new Error(NOT_FOUND);
+			if (rows[0].author !== user) throw new Error(FORBIDDEN);
+			if (rows[0].image_id) this.sql.exec("DELETE FROM files WHERE id = ?", rows[0].image_id);
+			this.sql.exec("DELETE FROM messages WHERE id = ?", id);
 		});
 	}
 

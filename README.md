@@ -1,12 +1,12 @@
 # Kanban
 
-A two-person kanban board: boards with **Not started / In progress / Completed** columns, drag-and-drop tasks, search across every board, a calendar of due dates, shared and personal notes, live sync between users, local backups, a light/dark theme and a choice of two visual styles (classic or glass).
+A two-person kanban board: boards with **Not started / In progress / Completed** columns, drag-and-drop tasks, search across every board, a calendar of due dates, Discord-style text channels (text, links and images), live sync between users, local backups, a light/dark theme and a choice of two visual styles (classic or glass).
 
 Stack: React + Vite (client), Hono on Cloudflare Workers (API), a SQLite-backed Durable Object (storage + WebSocket push). No external database to provision.
 
 ## Configuration
 
-Everything tunable is in [`app.config.ts`](app.config.ts): users (including each user's default style), columns, priorities, themes, styles, session length, login lockout, autosave delay, backup interval/retention, search limits, and the interface scale steps.
+Everything tunable is in [`app.config.ts`](app.config.ts): users (including each user's default style), columns, priorities, themes, styles, session length, login lockout, autosave delay, backup interval/retention, search limits, channel/image limits, calendar week start, and the interface scale steps.
 
 Secrets (never committed):
 
@@ -42,7 +42,8 @@ The Durable Object and its SQLite storage are created automatically on first dep
 ## How it works
 
 - **Auth** — `POST /api/login` is a plain HTML form submission (so browsers offer to save the password). On success the server sets an HttpOnly, SameSite=Lax cookie holding an HMAC-signed `{user, expiry}` token; every `/api/*` route and the WebSocket require it. Failed logins are counted per IP; after `AUTH.loginMaxFailures` within `AUTH.loginLockoutMinutes` the IP is locked out for the rest of the window.
-- **Data** — one Durable Object (`KanbanStore`, [`src/worker/store.ts`](src/worker/store.ts)) holds boards, tasks and notes in SQLite and exposes typed RPC methods. Every mutation bumps a version counter and pushes each user their full state over WebSocket, so both users always see the same board. The client applies optimistic updates for drag-and-drop and reconciles with the server's version.
+- **Data** — one Durable Object (`KanbanStore`, [`src/worker/store.ts`](src/worker/store.ts)) holds boards, tasks, channels and messages in SQLite and exposes typed RPC methods. Every mutation bumps a version counter and pushes each user the full state over WebSocket, so both users always see the same thing. The client applies optimistic updates for drag-and-drop and reconciles with the server's version.
+- **Channels** — the left panel lists text channels next to the boards; either user can add or delete one. A channel is a chronological log shared by both users: text (Enter sends, Shift+Enter for a newline; `http(s)://` URLs become links), and images, attached with the **+** button or by pasting. Images are stored as blobs in the same Durable Object and served from `/api/files/<id>` behind the session cookie, so nothing extra needs provisioning. The server accepts PNG, JPEG, GIF and WebP up to `CHANNELS.imageMaxBytes` (checked by content, not by the declared type); anything larger — or in another format the browser can decode — is scaled down to `CHANNELS.imageMaxDimension` and re-encoded as JPEG in the browser first, so small GIFs keep animating. You can delete your own messages; channels and messages are not part of the local backups.
 - **Interface scale** — Settings → Display steps the whole app through the scale levels in `DISPLAY.scaleSteps` (80%–200%), the same effect as the browser's own Ctrl +/−. It is applied as CSS `zoom` on the app root and saved in `localStorage`, so it is a per-browser display preference: it does not change what the other person sees, but it does apply to every tab of the app in that browser. The browser's native Ctrl +/− still works and compounds with it.
 - **Search** — the sidebar search box filters every task on every board by description and notes (all terms must match). Results are grouped by board; opening one jumps straight to that task, because the open task lives in the URL (`#/b/<boardId>/t/<taskId>`) and so can be linked to and reloaded.
 - **Calendar** — the sidebar's Calendar view is a month grid of every task that has a due date, across all boards, straight from the already-loaded state (so it stays in sync as tasks change). Clicking a task opens the same editor panel as on a board, with a link back to the task on its board; the open task lives in the URL (`#/calendar/t/<taskId>`) like it does on boards. The first day of the week is `CALENDAR.weekStartsOn` in [`app.config.ts`](app.config.ts).

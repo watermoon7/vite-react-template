@@ -1,5 +1,5 @@
 /** Request body validation for the API. Every parser throws ValidationError on bad input. */
-import { LIMITS } from "../../app.config";
+import { CHANNELS, LIMITS } from "../../app.config";
 import {
 	isAssignee,
 	isColumnId,
@@ -8,10 +8,10 @@ import {
 	type BackupData,
 	type Board,
 	type ColumnOrder,
-	type NotesScope,
 	type Task,
 	type TaskPatch,
 } from "../shared/types";
+import type { StoredFile } from "./store";
 
 export class ValidationError extends Error {
 	readonly status = 400;
@@ -100,16 +100,73 @@ export function parseColumnOrder(body: unknown): ColumnOrder {
 	return order;
 }
 
-/** Parses {content} for saving a notes page. */
-export function parseNotesInput(body: unknown): { content: string } {
+/** Parses {name} for creating a channel. */
+export function parseChannelInput(body: unknown): { name: string } {
 	const rec = asRecord(body, "body");
-	return { content: asString(rec.content, "content", LIMITS.notesMaxLength) };
+	const name = asString(rec.name, "name", LIMITS.channelNameMaxLength).trim();
+	if (name.length === 0) throw new ValidationError("name is required");
+	return { name };
 }
 
-/** Validates a notes scope path parameter. */
-export function parseNotesScope(value: string): NotesScope {
-	if (value !== "shared" && value !== "personal") throw new ValidationError("invalid notes scope");
-	return value;
+/** Byte signatures of the accepted image formats. WebP is "RIFF????WEBP", checked separately. */
+const IMAGE_SIGNATURES: [mime: string, magic: number[]][] = [
+	["image/png", [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]],
+	["image/jpeg", [0xff, 0xd8, 0xff]],
+	["image/gif", [0x47, 0x49, 0x46, 0x38, 0x37, 0x61]], // GIF87a
+	["image/gif", [0x47, 0x49, 0x46, 0x38, 0x39, 0x61]], // GIF89a
+];
+
+function startsWith(bytes: Uint8Array, magic: number[], offset = 0): boolean {
+	if (bytes.length < offset + magic.length) return false;
+	return magic.every((b, i) => bytes[offset + i] === b);
+}
+
+/** Detects the image type from the bytes themselves; the client's declared type is not trusted. */
+export function sniffImageType(bytes: Uint8Array): string | null {
+	for (const [mime, magic] of IMAGE_SIGNATURES) {
+		if (startsWith(bytes, magic)) return mime;
+	}
+	const riff = [0x52, 0x49, 0x46, 0x46];
+	const webp = [0x57, 0x45, 0x42, 0x50];
+	if (startsWith(bytes, riff) && startsWith(bytes, webp, 8)) return "image/webp";
+	return null;
+}
+
+const DATA_URL_PREFIX = /^data:[a-z]+\/[a-z0-9.+-]+;base64,/i;
+
+/** Decodes a base64 data URL into an accepted image, enforcing type (by content) and size. */
+function parseImageDataUrl(value: unknown): StoredFile {
+	if (typeof value !== "string") throw new ValidationError("image must be a data URL string");
+	// Base64 inflates by 4/3; reject early rather than decode something that cannot pass.
+	if (value.length > Math.ceil(CHANNELS.imageMaxBytes * 1.4) + 64) {
+		throw new ValidationError(`image is too large (max ${CHANNELS.imageMaxBytes} bytes)`);
+	}
+	const prefix = DATA_URL_PREFIX.exec(value);
+	if (!prefix) throw new ValidationError("image must be a base64 data URL");
+	let binary: string;
+	try {
+		binary = atob(value.slice(prefix[0].length));
+	} catch {
+		throw new ValidationError("image is not valid base64");
+	}
+	if (binary.length > CHANNELS.imageMaxBytes) {
+		throw new ValidationError(`image is too large (max ${CHANNELS.imageMaxBytes} bytes)`);
+	}
+	const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+	const mime = sniffImageType(bytes);
+	if (!mime || !CHANNELS.imageTypes.includes(mime)) {
+		throw new ValidationError(`unsupported image type (allowed: ${CHANNELS.imageTypes.join(", ")})`);
+	}
+	return { mime, bytes: bytes.buffer };
+}
+
+/** Parses {text?, image?} for posting a message; at least one of the two is required. */
+export function parseMessageInput(body: unknown): { text: string; image: StoredFile | null } {
+	const rec = asRecord(body, "body");
+	const text = rec.text === undefined ? "" : asString(rec.text, "text", LIMITS.messageTextMaxLength).trim();
+	const image = rec.image === undefined || rec.image === null ? null : parseImageDataUrl(rec.image);
+	if (text.length === 0 && image === null) throw new ValidationError("message needs text or an image");
+	return { text, image };
 }
 
 function parseBoard(value: unknown): Board {
