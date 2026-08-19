@@ -779,14 +779,14 @@ input[type="date"].input {
 .search-result.search-prio-high {
 	background: var(--prio-high-soft);
 }
-.search-result.search-done {
-	background: var(--done-soft);
+/* A completed task is crossed out in the results, as on the calendar. */
+.search-done .search-title {
+	color: var(--text-muted);
+	text-decoration: line-through;
 }
 /* The tint covers the row's normal hover colour, so tinted results get a ring instead. */
 .nav-item:hover .search-result[class*="search-prio-"],
-.nav-item:hover .search-result.search-done,
-.search-result[class*="search-prio-"]:focus-visible,
-.search-result.search-done:focus-visible {
+.search-result[class*="search-prio-"]:focus-visible {
 	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
@@ -946,10 +946,6 @@ input[type="date"].input {
 }
 .column-list .card.card-prio-high {
 	background: linear-gradient(var(--prio-high-soft), var(--prio-high-soft)) var(--bg);
-}
-/* Done beats priority: every card in the last column is green. */
-.column-completed .column-list .card {
-	background: linear-gradient(var(--done-soft), var(--done-soft)) var(--bg);
 }
 .card.selected {
 	border-color: var(--accent);
