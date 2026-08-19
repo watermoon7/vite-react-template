@@ -28,6 +28,8 @@
 	--prio-low-soft: #e9e4fa;
 	--prio-medium-soft: #fdf0d9;
 	--prio-high-soft: #fde8e6;
+	/* Text of the calendar's "today" marker, which is filled with --accent. */
+	--today-fg: var(--bg);
 	/* Column headers (In progress / Completed) and cards in the last column. */
 	--progress-soft: #d3e5fb;
 	--done-soft: #d7f3e2;
@@ -224,6 +226,7 @@
 		--prio-low-soft: rgba(167, 139, 250, 0.2);
 		--prio-medium-soft: rgba(251, 191, 36, 0.14);
 		--prio-high-soft: rgba(248, 113, 113, 0.17);
+		--today-fg: #0b0f1f; /* --accent is a pale indigo here; --bg would be near-invisible on it */
 		--progress-soft: rgba(96, 165, 250, 0.2);
 		--done-soft: rgba(52, 211, 153, 0.18);
 		--progress-faint: rgba(96, 165, 250, 0.08);
@@ -272,6 +275,7 @@
 	--prio-low-soft: rgba(167, 139, 250, 0.2);
 	--prio-medium-soft: rgba(251, 191, 36, 0.14);
 	--prio-high-soft: rgba(248, 113, 113, 0.17);
+	--today-fg: #0b0f1f; /* --accent is a pale indigo here; --bg would be near-invisible on it */
 	--progress-soft: rgba(96, 165, 250, 0.2);
 	--done-soft: rgba(52, 211, 153, 0.18);
 	--progress-faint: rgba(96, 165, 250, 0.08);
@@ -1325,11 +1329,15 @@ input[type="date"].input {
    cell's gap, because dnd sizes the gap it leaves for a lifted chip from the chip's margin
    box and shifts its neighbours by the same amount — a flex gap would be left out. */
 .cal-day {
+	position: relative;
 	min-width: 0;
 	min-height: 88px;
 	display: flex;
 	flex-direction: column;
-	padding: 6px;
+	/* The day number sits in the top padding, out of flow (see .cal-day-num), so the
+	   content box starts under it: dnd drops a chip into an empty day at the top of the
+	   content box, and that is then also the chip's final resting place. */
+	padding: 28px 6px 6px;
 	background: var(--bg);
 	border-right: 1px solid var(--border);
 	border-bottom: 1px solid var(--border);
@@ -1358,7 +1366,9 @@ input[type="date"].input {
 	zoom: var(--app-scale-inverse, 1);
 }
 .cal-day-num {
-	align-self: flex-start;
+	position: absolute;
+	top: 6px;
+	left: 6px;
 	width: 22px;
 	height: 22px;
 	display: inline-flex;
@@ -1371,7 +1381,7 @@ input[type="date"].input {
 }
 .cal-day.today .cal-day-num {
 	background: var(--accent);
-	color: var(--bg);
+	color: var(--today-fg);
 	font-weight: 600;
 }
 .cal-task {
