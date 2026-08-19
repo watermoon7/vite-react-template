@@ -1,22 +1,34 @@
 /**
  * KanbanStore — a single SQLite-backed Durable Object holding all boards, tasks, channels,
- * messages and message images. Exposes typed RPC methods for the Worker and a WebSocket
- * endpoint that pushes the full state to every connected client after each mutation.
+ * messages, message images, the shared playlist and the shared playback state. Exposes typed
+ * RPC methods for the Worker and a WebSocket endpoint that pushes the full state to every
+ * connected client after each mutation.
+ *
+ * The socket also carries two things that are not persisted state: a clock round trip (so the
+ * two music players can agree on where a song is) and the voice room — membership is simply
+ * which live sockets say they are in it, plus a relay for the peers' WebRTC signalling.
  */
 import { DurableObject } from "cloudflare:workers";
-import { AUTH, COLUMNS, DEFAULT_ASSIGNEE } from "../../app.config";
+import { AUTH, COLUMNS, DEFAULT_ASSIGNEE, MUSIC } from "../../app.config";
 import {
+	IDLE_PLAYBACK,
 	USER_IDS,
 	type AppState,
 	type BackupData,
 	type Board,
 	type Channel,
+	type ClientMessage,
 	type ColumnOrder,
 	type Message,
+	type Playback,
+	type PlaybackCommand,
 	type RestoreResult,
+	type ServerMessage,
+	type Song,
 	type Task,
 	type TaskPatch,
 	type UserId,
+	type VoiceMember,
 } from "../shared/types";
 
 /** Thrown by mutations that reference a missing board/task/channel/message; the Worker maps it to 404. */
@@ -52,6 +64,15 @@ CREATE TABLE IF NOT EXISTS files (
 	id TEXT PRIMARY KEY, mime TEXT NOT NULL, bytes BLOB NOT NULL, created_at TEXT NOT NULL, created_by TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS login_failures (
 	ip TEXT PRIMARY KEY, count INTEGER NOT NULL, window_start INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS songs (
+	id TEXT PRIMARY KEY, title TEXT NOT NULL, r2_key TEXT NOT NULL, mime TEXT NOT NULL,
+	size_bytes INTEGER NOT NULL, duration_seconds REAL, added_by TEXT NOT NULL,
+	position INTEGER NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS playback (
+	id INTEGER PRIMARY KEY CHECK (id = 1), song_id TEXT, playing INTEGER NOT NULL,
+	position_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL, updated_by TEXT);
+INSERT OR IGNORE INTO playback (id, song_id, playing, position_ms, updated_at_ms, updated_by)
+	VALUES (1, NULL, 0, 0, 0, NULL);
 `;
 
 type BoardRow = { id: string; name: string; position: number; created_at: string; updated_at: string };
@@ -79,6 +100,49 @@ type MessageRow = {
 	image_id: string | null;
 	created_at: string;
 };
+
+type SongRow = {
+	id: string;
+	title: string;
+	r2_key: string;
+	mime: string;
+	size_bytes: number;
+	duration_seconds: number | null;
+	added_by: UserId;
+	position: number;
+	created_at: string;
+};
+
+type PlaybackRow = {
+	song_id: string | null;
+	playing: number;
+	position_ms: number;
+	updated_at_ms: number;
+	updated_by: UserId | null;
+};
+
+function rowToSong(r: SongRow): Song {
+	return {
+		id: r.id,
+		title: r.title,
+		mime: r.mime,
+		sizeBytes: r.size_bytes,
+		durationSeconds: r.duration_seconds,
+		addedBy: r.added_by,
+		position: r.position,
+		createdAt: r.created_at,
+	};
+}
+
+function rowToPlayback(r: PlaybackRow): Playback {
+	return {
+		songId: r.song_id,
+		playing: r.playing !== 0,
+		positionMs: r.position_ms,
+		updatedAtMs: r.updated_at_ms,
+		updatedBy: r.updated_by,
+	};
+}
 
 function rowToBoard(r: BoardRow): Board {
 	return { id: r.id, name: r.name, position: r.position, createdAt: r.created_at, updatedAt: r.updated_at };
@@ -118,6 +182,134 @@ function rowToTask(r: TaskRow): Task {
 
 const FIRST_COLUMN = COLUMNS[0].id;
 
+/**
+ * What each accepted socket carries. `voice` is non-null exactly while that tab is in the
+ * voice room, which makes the room self-cleaning: a closed socket takes its membership with it.
+ */
+interface SocketAttachment {
+	user: UserId;
+	voice: { joinedAt: number; muted: boolean; sharing: boolean } | null;
+}
+
+function readAttachment(ws: WebSocket): SocketAttachment | null {
+	const value = ws.deserializeAttachment() as SocketAttachment | null;
+	if (!value || typeof value !== "object" || !USER_IDS.includes(value.user)) return null;
+	return value;
+}
+
+function writeAttachment(ws: WebSocket, attachment: SocketAttachment): void {
+	ws.serializeAttachment(attachment);
+}
+
+/** Sends one server message, ignoring a socket that has already gone away. */
+function send(ws: WebSocket, message: ServerMessage): void {
+	try {
+		ws.send(JSON.stringify(message));
+	} catch {
+		// Socket already gone; the runtime cleans it up.
+	}
+}
+
+function clamp(value: number, min: number, max: number): number {
+	if (!Number.isFinite(value)) return min;
+	return Math.min(max, Math.max(min, value));
+}
+
+/** A song as handed to the store once its bytes are safely in R2. */
+export interface NewSong {
+	id: string;
+	r2Key: string;
+	title: string;
+	mime: string;
+	sizeBytes: number;
+	durationSeconds: number | null;
+}
+
+/** One entry of the playlist, as the playback rules need it. */
+type PlaylistEntry = { id: string; durationMs: number | null };
+
+/** Where the current song is right now, given a playback state and the server clock. */
+function positionNow(playback: Playback, durationMs: number | null, now: number): number {
+	const elapsed = playback.playing ? Math.max(0, now - playback.updatedAtMs) : 0;
+	return clamp(playback.positionMs + elapsed, 0, durationMs ?? Number.MAX_SAFE_INTEGER);
+}
+
+function entryOf(playlist: PlaylistEntry[], songId: string | null): PlaylistEntry | undefined {
+	return songId === null ? undefined : playlist.find((entry) => entry.id === songId);
+}
+
+/**
+ * Playback after moving `steps` songs from `songId`. Falling off either end stops playback
+ * at the start of the song we stopped on, which is what "the playlist finished" should feel like.
+ */
+function stepTo(playlist: PlaylistEntry[], songId: string | null, steps: number, playing: boolean, now: number, user: UserId): Playback {
+	const index = playlist.findIndex((entry) => entry.id === songId);
+	const target = index + steps;
+	const inRange = target >= 0 && target < playlist.length;
+	const landed = inRange ? playlist[target].id : (playlist[clamp(target, 0, playlist.length - 1)]?.id ?? null);
+	return { songId: landed, playing: playing && inRange, positionMs: 0, updatedAtMs: now, updatedBy: user };
+}
+
+/**
+ * The shared playback state after a client command. Pure so the rules are all in one place:
+ * every branch returns a complete state stamped with the server clock, which is what the
+ * clients extrapolate their own position from.
+ */
+function applyPlaybackCommand(
+	current: Playback,
+	playlist: PlaylistEntry[],
+	command: PlaybackCommand,
+	now: number,
+	user: UserId,
+): Playback {
+	if (playlist.length === 0) return { ...IDLE_PLAYBACK, updatedAtMs: now };
+	const entry = entryOf(playlist, current.songId);
+	const durationMs = entry?.durationMs ?? null;
+	const here = positionNow(current, durationMs, now);
+	switch (command.action) {
+		case "play": {
+			const requested = command.songId ?? current.songId;
+			const target = entryOf(playlist, requested) ?? playlist[0];
+			const changingSong = target.id !== current.songId;
+			// Resuming a song that already ran to its end starts it again rather than doing nothing.
+			const atEnd = durationMs !== null && here >= durationMs - 250;
+			const resumeAt = changingSong || atEnd ? 0 : here;
+			const positionMs = clamp(command.positionMs ?? resumeAt, 0, target.durationMs ?? Number.MAX_SAFE_INTEGER);
+			return { songId: target.id, playing: true, positionMs, updatedAtMs: now, updatedBy: user };
+		}
+		case "pause":
+			return { ...current, playing: false, positionMs: here, updatedAtMs: now, updatedBy: user };
+		case "seek":
+			return {
+				...current,
+				positionMs: clamp(command.positionMs, 0, durationMs ?? Number.MAX_SAFE_INTEGER),
+				updatedAtMs: now,
+				updatedBy: user,
+			};
+		case "skip":
+			return {
+				...current,
+				positionMs: clamp(here + command.deltaMs, 0, durationMs ?? Number.MAX_SAFE_INTEGER),
+				updatedAtMs: now,
+				updatedBy: user,
+			};
+		case "next":
+			// Both browsers send this when a song ends; the second one is a no-op because the
+			// song it was reacting to is no longer the current one.
+			if (command.fromSongId !== undefined && command.fromSongId !== current.songId) return current;
+			return stepTo(playlist, current.songId, 1, true, now, user);
+		case "previous":
+			// Part-way into a song, "previous" restarts it — as every other player does.
+			if (here > MUSIC.previousRestartsAfterSeconds * 1000) {
+				return { ...current, positionMs: 0, updatedAtMs: now, updatedBy: user };
+			}
+			return stepTo(playlist, current.songId, -1, current.playing, now, user);
+		default:
+			return current;
+	}
+}
+
+
 export class KanbanStore extends DurableObject<Env> {
 	private readonly sql: SqlStorage;
 
@@ -141,14 +333,52 @@ export class KanbanStore extends DurableObject<Env> {
 		const [client, server] = [pair[0], pair[1]];
 		// Tag the socket with the user so broadcasts can be built per user.
 		this.ctx.acceptWebSocket(server, [user]);
+		// The attachment survives hibernation and is the only record of who is in the voice room.
+		writeAttachment(server, { user, voice: null });
+		// Frames sent now are queued until the client side of the pair is open.
+		send(server, { type: "voice", room: this.voiceRoom() });
 		return new Response(null, { status: 101, webSocket: client });
 	}
 
-	override async webSocketMessage(): Promise<void> {
-		// Clients only send "ping" (auto-answered) — nothing else to handle.
+	/** Handles the clock round trip and the voice-room commands; everything else goes through /api. */
+	override async webSocketMessage(ws: WebSocket, raw: ArrayBuffer | string): Promise<void> {
+		if (typeof raw !== "string") return; // only JSON text frames are understood
+		let message: ClientMessage;
+		try {
+			message = JSON.parse(raw) as ClientMessage;
+		} catch {
+			return; // malformed frame
+		}
+		if (typeof message !== "object" || message === null || typeof message.t !== "string") return;
+		const attachment = readAttachment(ws);
+		if (!attachment) return; // socket accepted before this build, or attachment lost
+		switch (message.t) {
+			case "time":
+				// Echo the client's send time back beside ours so it can subtract the round trip.
+				if (typeof message.c === "number") send(ws, { type: "time", c: message.c, s: Date.now() });
+				return;
+			case "voice-join":
+				this.joinVoice(ws, attachment);
+				return;
+			case "voice-leave":
+				this.leaveVoice(ws, attachment);
+				return;
+			case "voice-mute":
+				if (typeof message.muted === "boolean") this.updateVoice(ws, attachment, { muted: message.muted });
+				return;
+			case "voice-screen":
+				if (typeof message.sharing === "boolean") this.updateVoice(ws, attachment, { sharing: message.sharing });
+				return;
+			case "voice-signal":
+				this.relaySignal(attachment, message.to, message.data);
+				return;
+			default:
+				return; // unknown command from a newer client
+		}
 	}
 
 	override async webSocketClose(ws: WebSocket, code: number): Promise<void> {
+		this.forgetVoice(ws);
 		try {
 			// 1005/1006 are reserved and cannot be sent back.
 			ws.close(code === 1005 || code === 1006 ? 1000 : code, "closed");
@@ -158,6 +388,7 @@ export class KanbanStore extends DurableObject<Env> {
 	}
 
 	override async webSocketError(ws: WebSocket): Promise<void> {
+		this.forgetVoice(ws);
 		try {
 			ws.close(1011, "error");
 		} catch {
@@ -181,6 +412,79 @@ export class KanbanStore extends DurableObject<Env> {
 		}
 	}
 
+	// ---------- Voice room ----------
+
+	/** Everyone currently in the room, oldest join first. Derived purely from the live sockets. */
+	private voiceRoom(): VoiceMember[] {
+		const members = new Map<UserId, VoiceMember>();
+		for (const ws of this.ctx.getWebSockets()) {
+			const attachment = readAttachment(ws);
+			if (!attachment?.voice) continue;
+			// One tab per user is the rule, but keep the newest if a stale socket lingers.
+			const existing = members.get(attachment.user);
+			if (existing && existing.joinedAt >= attachment.voice.joinedAt) continue;
+			members.set(attachment.user, { user: attachment.user, ...attachment.voice });
+		}
+		return [...members.values()].sort((a, b) => a.joinedAt - b.joinedAt);
+	}
+
+	/** Pushes the room to every socket — including sockets that are not in it, which draw the presence dots. */
+	private broadcastVoice(): void {
+		const room = this.voiceRoom();
+		for (const ws of this.ctx.getWebSockets()) send(ws, { type: "voice", room });
+	}
+
+	/**
+	 * Puts this socket in the room. Only one tab per user may be in it, so any other tab of
+	 * the same user is removed first and told why.
+	 */
+	private joinVoice(ws: WebSocket, attachment: SocketAttachment): void {
+		for (const other of this.ctx.getWebSockets(attachment.user)) {
+			if (other === ws) continue;
+			const otherAttachment = readAttachment(other);
+			if (!otherAttachment?.voice) continue;
+			writeAttachment(other, { ...otherAttachment, voice: null });
+			send(other, { type: "voice-evicted" });
+		}
+		writeAttachment(ws, { ...attachment, voice: { joinedAt: Date.now(), muted: false, sharing: false } });
+		this.broadcastVoice();
+	}
+
+	private leaveVoice(ws: WebSocket, attachment: SocketAttachment): void {
+		if (!attachment.voice) return;
+		writeAttachment(ws, { ...attachment, voice: null });
+		this.broadcastVoice();
+	}
+
+	/** Applies a mute / screen-share change to a socket that is in the room. */
+	private updateVoice(ws: WebSocket, attachment: SocketAttachment, patch: Partial<VoiceMember>): void {
+		if (!attachment.voice) return;
+		writeAttachment(ws, { ...attachment, voice: { ...attachment.voice, ...patch } });
+		this.broadcastVoice();
+	}
+
+	/** Drops a closing socket out of the room so the other user sees it leave at once. */
+	private forgetVoice(ws: WebSocket): void {
+		const attachment = readAttachment(ws);
+		if (!attachment?.voice) return;
+		writeAttachment(ws, { ...attachment, voice: null });
+		this.broadcastVoice();
+	}
+
+	/**
+	 * Relays one WebRTC signalling payload (an SDP offer/answer or an ICE candidate) to the
+	 * other user's socket in the room. The contents are opaque here: the media itself never
+	 * touches this object.
+	 */
+	private relaySignal(from: SocketAttachment, to: unknown, data: unknown): void {
+		if (!from.voice) return; // only peers actually in the room may signal
+		if (typeof to !== "string" || !USER_IDS.includes(to as UserId) || to === from.user) return;
+		for (const ws of this.ctx.getWebSockets(to as UserId)) {
+			if (!readAttachment(ws)?.voice) continue;
+			send(ws, { type: "voice-signal", from: from.user, data });
+		}
+	}
+
 	// ---------- Reads ----------
 
 	private readVersion(): number {
@@ -195,13 +499,24 @@ export class KanbanStore extends DurableObject<Env> {
 		const channels = this.sql.exec<ChannelRow>("SELECT * FROM channels ORDER BY position, created_at").toArray();
 		// rowid breaks ties between messages created in the same millisecond.
 		const messages = this.sql.exec<MessageRow>("SELECT * FROM messages ORDER BY created_at, rowid").toArray();
+		const songs = this.sql.exec<SongRow>("SELECT * FROM songs ORDER BY position, created_at").toArray();
 		return {
 			version: this.readVersion(),
 			boards: boards.map(rowToBoard),
 			tasks: tasks.map(rowToTask),
 			channels: channels.map(rowToChannel),
 			messages: messages.map(rowToMessage),
+			songs: songs.map(rowToSong),
+			playback: this.readPlayback(),
 		};
+	}
+
+	/** The one shared playback row. */
+	private readPlayback(): Playback {
+		const rows = this.sql
+			.exec<PlaybackRow>("SELECT song_id, playing, position_ms, updated_at_ms, updated_by FROM playback WHERE id = 1")
+			.toArray();
+		return rows.length === 0 ? { ...IDLE_PLAYBACK } : rowToPlayback(rows[0]);
 	}
 
 	/** An image attached to a message, or null if there is no such file. */
@@ -428,6 +743,102 @@ export class KanbanStore extends DurableObject<Env> {
 			result.restoredTasks = count("tasks") - tasksBefore;
 		});
 		return { state, result };
+	}
+
+	// ---------- Music ----------
+
+	/** Ids of the playlist in play order, with each song's length in ms (null when unknown). */
+	private playlist(): { id: string; durationMs: number | null }[] {
+		const rows = this.sql
+			.exec<{ id: string; duration_seconds: number | null }>(
+				"SELECT id, duration_seconds FROM songs ORDER BY position, created_at",
+			)
+			.toArray();
+		return rows.map((r) => ({ id: r.id, durationMs: r.duration_seconds === null ? null : r.duration_seconds * 1000 }));
+	}
+
+	private writePlayback(next: Playback): void {
+		this.sql.exec(
+			"UPDATE playback SET song_id = ?, playing = ?, position_ms = ?, updated_at_ms = ?, updated_by = ? WHERE id = 1",
+			next.songId, next.playing ? 1 : 0, Math.round(next.positionMs), Math.round(next.updatedAtMs), next.updatedBy,
+		);
+	}
+
+	/**
+	 * Records an uploaded song at the end of the playlist. The bytes are already in R2 under
+	 * `r2Key`; this row is what makes the song visible to both users.
+	 */
+	addSong(user: UserId, song: NewSong): { state: AppState; songId: string } {
+		if (!song.id || !song.r2Key) throw new Error("song id and key are required");
+		if (song.sizeBytes <= 0) throw new Error("empty song");
+		const now = new Date().toISOString();
+		const state = this.commit(user, () => {
+			const next = this.sql.exec<{ p: number }>("SELECT COALESCE(MAX(position), -1) + 1 AS p FROM songs").one().p;
+			this.sql.exec(
+				`INSERT INTO songs (id, title, r2_key, mime, size_bytes, duration_seconds, added_by, position, created_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				song.id, song.title, song.r2Key, song.mime, song.sizeBytes, song.durationSeconds, user, next, now,
+			);
+		});
+		return { state, songId: song.id };
+	}
+
+	renameSong(user: UserId, id: string, title: string): AppState {
+		return this.commit(user, () => {
+			const cursor = this.sql.exec("UPDATE songs SET title = ? WHERE id = ?", title, id);
+			if (cursor.rowsWritten === 0) throw new Error(NOT_FOUND);
+		});
+	}
+
+	/**
+	 * Removes a song from the playlist and returns its R2 key so the Worker can delete the
+	 * object. Deleting whatever is playing moves playback on to the next song.
+	 */
+	deleteSong(user: UserId, id: string): { state: AppState; r2Key: string } {
+		const rows = this.sql.exec<{ r2_key: string }>("SELECT r2_key FROM songs WHERE id = ?", id).toArray();
+		if (rows.length === 0) throw new Error(NOT_FOUND);
+		const state = this.commit(user, () => {
+			const before = this.playlist();
+			const playback = this.readPlayback();
+			this.sql.exec("DELETE FROM songs WHERE id = ?", id);
+			if (playback.songId !== id) return;
+			// Removing entry i shifts what followed it into slot i, so that is the song to carry on with.
+			const successor = this.playlist()[before.findIndex((entry) => entry.id === id)] ?? null;
+			this.writePlayback({
+				songId: successor?.id ?? null,
+				playing: playback.playing && successor !== null,
+				positionMs: 0,
+				updatedAtMs: Date.now(),
+				updatedBy: user,
+			});
+		});
+		return { state, r2Key: rows[0].r2_key };
+	}
+
+	/** Sets the playlist order from a complete list of song ids; unknown ids are ignored. */
+	reorderSongs(user: UserId, ids: string[]): AppState {
+		return this.commit(user, () => {
+			ids.forEach((id, position) => {
+				this.sql.exec("UPDATE songs SET position = ? WHERE id = ? AND position IS NOT ?", position, id, position);
+			});
+		});
+	}
+
+	/** Where a song's bytes live, for the Worker's range-serving route. */
+	getSong(id: string): { r2Key: string; mime: string; title: string } | null {
+		if (!id) return null;
+		const rows = this.sql
+			.exec<{ r2_key: string; mime: string; title: string }>("SELECT r2_key, mime, title FROM songs WHERE id = ?", id)
+			.toArray();
+		if (rows.length === 0) return null;
+		return { r2Key: rows[0].r2_key, mime: rows[0].mime, title: rows[0].title };
+	}
+
+	/** Applies a play/pause/seek/skip/next/previous command to the one shared playback state. */
+	playbackCommand(user: UserId, command: PlaybackCommand): AppState {
+		return this.commit(user, () => {
+			this.writePlayback(applyPlaybackCommand(this.readPlayback(), this.playlist(), command, Date.now(), user));
+		});
 	}
 
 	// ---------- Login rate limiting ----------

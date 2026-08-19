@@ -4,8 +4,8 @@
  */
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import { AUTH } from "../../app.config";
-import type { UserId } from "../shared/types";
+import { AUTH, MUSIC, VOICE } from "../../app.config";
+import type { IceServer, UserId } from "../shared/types";
 import { createSessionToken, verifyPassword, verifySessionToken } from "./auth";
 import { FORBIDDEN, KanbanStore, NOT_FOUND } from "./store";
 import {
@@ -15,6 +15,10 @@ import {
 	parseChannelInput,
 	parseColumnOrder,
 	parseMessageInput,
+	parsePlaybackCommand,
+	parseSongOrder,
+	parseSongTitle,
+	parseSongUpload,
 	parseTaskCreate,
 	parseTaskPatch,
 } from "./validate";
@@ -182,6 +186,144 @@ app.get("/api/files/:id", async (c) => {
 			"X-Content-Type-Options": "nosniff",
 		},
 	});
+});
+
+// ---------- Voice room ----------
+
+/**
+ * ICE servers for the voice call. Cloudflare Realtime TURN credentials are minted here when
+ * TURN_KEY_ID / TURN_API_TOKEN are configured; without them the call falls back to STUN alone,
+ * which is enough unless one of the two networks blocks direct connections. The relay only ever
+ * carries DTLS-SRTP packets, so it cannot listen in either way.
+ */
+app.get("/api/turn", async (c) => {
+	const fallback: { iceServers: IceServer[] } = { iceServers: [{ urls: [...VOICE.fallbackIceServers] }] };
+	const secrets = c.env as unknown as Record<string, string | undefined>;
+	const keyId = secrets.TURN_KEY_ID;
+	const token = secrets.TURN_API_TOKEN;
+	if (!keyId || !token) return c.json(fallback);
+	try {
+		const res = await fetch(
+			`https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/generate-ice-servers`,
+			{
+				method: "POST",
+				headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+				body: JSON.stringify({ ttl: VOICE.turnCredentialTtlSeconds }),
+			},
+		);
+		if (!res.ok) throw new Error(`TURN credentials request failed: ${res.status}`);
+		const payload = (await res.json()) as { iceServers?: IceServer | IceServer[] };
+		if (!payload.iceServers) throw new Error("TURN response contained no iceServers");
+		const servers = Array.isArray(payload.iceServers) ? payload.iceServers : [payload.iceServers];
+		return c.json({ iceServers: servers });
+	} catch (err) {
+		// A missing relay only costs the fallback path, so log it and let the call try STUN.
+		console.error(err);
+		return c.json(fallback);
+	}
+});
+
+// ---------- Music ----------
+
+/** R2 key for a song. Ids are random, so the key never collides and never changes. */
+function songKey(id: string): string {
+	return `songs/${id}`;
+}
+
+/**
+ * Uploads a song: the raw file as the body, its title and measured duration as query
+ * parameters. The bytes go to R2 first so a failed playlist write cannot leave a song
+ * that plays nothing; a failed row leaves an orphan object, which is cleaned up here.
+ */
+app.post("/api/music", async (c) => {
+	const declared = Number(c.req.header("Content-Length") ?? Number.NaN);
+	if (Number.isFinite(declared) && declared > MUSIC.maxBytes) {
+		throw new ValidationError(`the file is too large (max ${Math.round(MUSIC.maxBytes / (1024 * 1024))} MB)`);
+	}
+	const song = parseSongUpload(
+		await c.req.arrayBuffer(),
+		c.req.query("title"),
+		c.req.query("duration") ?? undefined,
+	);
+	const id = crypto.randomUUID();
+	const key = songKey(id);
+	await c.env.MUSIC.put(key, song.bytes, { httpMetadata: { contentType: song.mime } });
+	try {
+		const result = await store(c.env).addSong(c.get("user"), {
+			id,
+			r2Key: key,
+			title: song.title,
+			mime: song.mime,
+			sizeBytes: song.bytes.byteLength,
+			durationSeconds: song.durationSeconds,
+		});
+		return c.json(result, 201);
+	} catch (err) {
+		await c.env.MUSIC.delete(key);
+		throw err;
+	}
+});
+
+app.patch("/api/music/:id", async (c) => {
+	const { title } = parseSongTitle(await jsonBody(c));
+	return c.json(await store(c.env).renameSong(c.get("user"), c.req.param("id"), title));
+});
+
+app.delete("/api/music/:id", async (c) => {
+	const { state, r2Key } = await store(c.env).deleteSong(c.get("user"), c.req.param("id"));
+	await c.env.MUSIC.delete(r2Key);
+	return c.json(state);
+});
+
+app.post("/api/music/reorder", async (c) => {
+	const ids = parseSongOrder(await jsonBody(c));
+	return c.json(await store(c.env).reorderSongs(c.get("user"), ids));
+});
+
+/** Byte offset and length an R2 range resolves to for an object of `size` bytes. */
+function resolveRange(range: R2Range, size: number): { offset: number; length: number } {
+	if ("suffix" in range) {
+		const length = Math.min(range.suffix, size);
+		return { offset: size - length, length };
+	}
+	const offset = range.offset ?? 0;
+	const length = range.length ?? size - offset;
+	return { offset, length: Math.min(length, size - offset) };
+}
+
+/**
+ * Streams a song from R2. Range requests are answered with 206 so the browser can seek;
+ * `<audio>` will not expose a seek bar without it. Ids are random and the bytes never
+ * change, so the response may be cached for good.
+ */
+app.get("/api/music/:id/file", async (c) => {
+	const song = await store(c.env).getSong(c.req.param("id"));
+	if (!song) return c.json({ error: "not found" }, 404);
+	const wantsRange = c.req.header("Range") !== undefined;
+	const object = await c.env.MUSIC.get(song.r2Key, wantsRange ? { range: c.req.raw.headers } : undefined);
+	if (!object) return c.json({ error: "not found" }, 404);
+	if (!("body" in object) || object.body === null) return c.json({ error: "not found" }, 404);
+	const headers = new Headers();
+	object.writeHttpMetadata(headers);
+	headers.set("Content-Type", song.mime);
+	headers.set("ETag", object.httpEtag);
+	headers.set("Accept-Ranges", "bytes");
+	headers.set("Cache-Control", "private, max-age=31536000, immutable");
+	headers.set("X-Content-Type-Options", "nosniff");
+	if (!object.range) {
+		headers.set("Content-Length", String(object.size));
+		return new Response(object.body, { headers });
+	}
+	const { offset, length } = resolveRange(object.range, object.size);
+	headers.set("Content-Range", `bytes ${offset}-${offset + length - 1}/${object.size}`);
+	headers.set("Content-Length", String(length));
+	return new Response(object.body, { status: 206, headers });
+});
+
+/** Applies a play/pause/seek/next/previous to the playback state both users share. */
+app.post("/api/playback", async (c) => {
+	const command = parsePlaybackCommand(await jsonBody(c));
+	return c.json(await store(c.env).playbackCommand(c.get("user"), command));
 });
 
 app.post("/api/restore", async (c) => {

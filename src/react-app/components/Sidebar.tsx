@@ -1,6 +1,18 @@
-/** Left panel: task search, boards and chats (channels; create/rename/delete/switch), calendar, settings, connection status. */
+/**
+ * Left panel: task search, boards and chats (channels; create/rename/delete/switch), the
+ * voice room, calendar, music, settings and the connection status.
+ */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { DONE_COLUMN, type Board, type Channel, type Message, type Task, type UserId } from "../../shared/types";
+import {
+	DONE_COLUMN,
+	type Board,
+	type Channel,
+	type Message,
+	type Playback,
+	type Song,
+	type Task,
+	type UserId,
+} from "../../shared/types";
 import { userName } from "../format";
 import { navigate, routeToHash, type Route } from "../router";
 import { FILTER_HELP, searchTasks } from "../search";
@@ -8,6 +20,7 @@ import { createBoard, createChannel, deleteBoard, deleteChannel, renameBoard, re
 import { ConfirmButton } from "./Confirm";
 import { PencilIcon, PlusIcon } from "./icons";
 import { TaskMeta } from "./TaskCard";
+import { VoiceRoom } from "./VoiceRoom";
 
 interface Props {
 	route: Route;
@@ -15,6 +28,8 @@ interface Props {
 	tasks: Task[];
 	channels: Channel[];
 	messages: Message[];
+	songs: Song[];
+	playback: Playback;
 	user: UserId;
 	live: boolean;
 }
@@ -68,7 +83,7 @@ function NameInput({ placeholder, initialValue = "", onSubmit, onCancel }: NameI
 	);
 }
 
-export function Sidebar({ route, boards, tasks, channels, messages, user, live }: Props) {
+export function Sidebar({ route, boards, tasks, channels, messages, songs, playback, user, live }: Props) {
 	const [query, setQuery] = useState("");
 	const results = useMemo(() => searchTasks(query, boards, tasks), [query, boards, tasks]);
 	const resultList = useRef<HTMLDivElement>(null);
@@ -178,6 +193,8 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 
 	const isBoard = (id: string) => route.kind === "board" && route.boardId === id;
 	const isChannel = (id: string) => route.kind === "channel" && route.channelId === id;
+	// Only shown while something is actually playing, so the row stays one line the rest of the time.
+	const nowPlaying = playback.playing ? (songs.find((s) => s.id === playback.songId)?.title ?? null) : null;
 
 	return (
 		<nav className="sidebar">
@@ -340,11 +357,19 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 				</>
 			)}
 
+			<VoiceRoom route={route} user={user} />
+
 			<div className="sidebar-footer sidebar-section">
 				<ul className="nav-list">
 					<li className={"nav-item" + (route.kind === "calendar" ? " active" : "")}>
 						<a href={routeToHash({ kind: "calendar" })} className="nav-link">
 							Calendar
+						</a>
+					</li>
+					<li className={"nav-item" + (route.kind === "music" ? " active" : "")}>
+						<a href={routeToHash({ kind: "music" })} className="nav-link nav-music" title={nowPlaying ?? "Music"}>
+							<span>Music</span>
+							{nowPlaying && <span className="nav-subtitle muted small">{nowPlaying}</span>}
 						</a>
 					</li>
 					<li className={"nav-item" + (route.kind === "settings" ? " active" : "")}>

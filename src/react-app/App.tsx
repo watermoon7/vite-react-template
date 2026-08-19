@@ -1,16 +1,19 @@
 /** Application shell: session gate, hash routing, sidebar + main pane. */
-import { useEffect, useLayoutEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { CLIENT } from "../../app.config";
-import type { AppState } from "../shared/types";
+import type { AppState, UserId } from "../shared/types";
 import { BoardView } from "./components/BoardView";
 import { CalendarPage } from "./components/CalendarPage";
 import { ChannelPage } from "./components/ChannelPage";
 import { Login } from "./components/Login";
+import { MusicPage } from "./components/MusicPage";
+import { ScreenSharePage } from "./components/ScreenSharePage";
 import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
-import { lastRoute, parseHash, routeToHash, useHash, type Route } from "./router";
+import { lastRoute, navigate, parseHash, routeToHash, useHash, type Route } from "./router";
 import { bootstrap, dismissError, useStore } from "./store";
 import { bindStyleUser, showLoginStyle } from "./style";
+import { bindVoiceUser, useVoice } from "./voice";
 
 /** True when `route` points at something that exists in `data` (calendar and settings always do). */
 function routeExists(route: Route, data: AppState): boolean {
@@ -20,6 +23,8 @@ function routeExists(route: Route, data: AppState): boolean {
 		case "channel":
 			return data.channels.some((c) => c.id === route.channelId);
 		case "calendar":
+		case "music":
+		case "screen":
 		case "settings":
 			return true;
 		default:
@@ -43,6 +48,33 @@ function resolveRoute(requested: Route, data: AppState): Route {
 	return data.boards.length > 0 ? { kind: "board", boardId: data.boards[0].id } : { kind: "home" };
 }
 
+/**
+ * Opens the screen-share view when the other person starts sharing, and puts the view back
+ * where it was when they stop. A share is something to look at now, so it comes to the front
+ * rather than waiting to be found — and leaving it is one button either way.
+ */
+function useFollowScreenShare(user: UserId | null, route: Route | null): void {
+	const voice = useVoice();
+	const sharing = user !== null && voice.room.some((member) => member.user !== user && member.sharing);
+	const returnTo = useRef<string | null>(null);
+	const watching = route?.kind === "screen";
+
+	useEffect(() => {
+		if (sharing && !watching) {
+			returnTo.current = location.hash;
+			navigate({ kind: "screen" });
+			return;
+		}
+		if (!sharing && watching) {
+			navigate(returnTo.current ? parseHash(returnTo.current) : { kind: "home" });
+			returnTo.current = null;
+		}
+		// `watching` is deliberately not a dependency: this reacts to the share starting and
+		// stopping, and must not drag the user back after they press "Stop watching".
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [sharing]);
+}
+
 export default function App() {
 	const store = useStore();
 	const hash = useHash();
@@ -58,8 +90,14 @@ export default function App() {
 		else if (store.auth === "unauthenticated") showLoginStyle();
 	}, [store.user, store.auth]);
 
+	// The voice room needs to know who is signed in to work out who the other peer is.
+	useEffect(() => {
+		if (store.user) bindVoiceUser(store.user);
+	}, [store.user]);
+
 	const data = store.data;
 	const route = useMemo(() => (data ? resolveRoute(parseHash(hash), data) : null), [hash, data]);
+	useFollowScreenShare(store.user, route);
 
 	useEffect(() => {
 		if (route && route.kind !== "home") localStorage.setItem(CLIENT.storageKeys.lastRoute, routeToHash(route));
@@ -81,6 +119,8 @@ export default function App() {
 				tasks={data.tasks}
 				channels={data.channels}
 				messages={data.messages}
+				songs={data.songs}
+				playback={data.playback}
 				user={store.user}
 				live={store.live}
 			/>
@@ -112,6 +152,8 @@ export default function App() {
 				{route.kind === "calendar" && (
 					<CalendarPage boards={data.boards} tasks={data.tasks} selectedId={route.taskId ?? null} />
 				)}
+				{route.kind === "music" && <MusicPage songs={data.songs} playback={data.playback} user={store.user} />}
+				{route.kind === "screen" && <ScreenSharePage user={store.user} />}
 				{route.kind === "settings" && <SettingsPage user={store.user} data={data} />}
 				{route.kind === "home" && (
 					<div className="screen-center muted">

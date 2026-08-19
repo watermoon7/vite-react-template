@@ -1,5 +1,5 @@
 /** Request body validation for the API. Every parser throws ValidationError on bad input. */
-import { CHANNELS, LIMITS } from "../../app.config";
+import { CHANNELS, LIMITS, MUSIC } from "../../app.config";
 import {
 	isAssignee,
 	isColumnId,
@@ -8,6 +8,7 @@ import {
 	type BackupData,
 	type Board,
 	type ColumnOrder,
+	type PlaybackCommand,
 	type Task,
 	type TaskPatch,
 } from "../shared/types";
@@ -167,6 +168,115 @@ export function parseMessageInput(body: unknown): { text: string; image: StoredF
 	const image = rec.image === undefined || rec.image === null ? null : parseImageDataUrl(rec.image);
 	if (text.length === 0 && image === null) throw new ValidationError("message needs text or an image");
 	return { text, image };
+}
+
+// ---------- Music ----------
+
+/**
+ * Byte signatures of the accepted audio formats, in the order they are tested. MP3 and ADTS
+ * AAC share the 11-bit frame sync, so they are told apart by the layer bits below.
+ */
+const AUDIO_SIGNATURES: [mime: string, magic: number[], offset: number][] = [
+	["audio/mpeg", [0x49, 0x44, 0x33], 0], // ID3v2 tag, i.e. an MP3
+	["audio/ogg", [0x4f, 0x67, 0x67, 0x53], 0], // "OggS" — Vorbis or Opus
+	["audio/flac", [0x66, 0x4c, 0x61, 0x43], 0], // "fLaC"
+	["audio/mp4", [0x66, 0x74, 0x79, 0x70], 4], // "ftyp" — M4A/AAC in an MP4 container
+];
+
+/** Detects the audio type from the bytes themselves; the client's declared type is not trusted. */
+export function sniffAudioType(bytes: Uint8Array): string | null {
+	for (const [mime, magic, offset] of AUDIO_SIGNATURES) {
+		if (startsWith(bytes, magic, offset)) return mime;
+	}
+	const riff = [0x52, 0x49, 0x46, 0x46];
+	const wave = [0x57, 0x41, 0x56, 0x45];
+	if (startsWith(bytes, riff) && startsWith(bytes, wave, 8)) return "audio/wav";
+	// A bare frame sync: 11 set bits. The two layer bits are 00 for ADTS AAC and never for MPEG audio.
+	if (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) {
+		return (bytes[1] & 0x06) === 0 ? "audio/aac" : "audio/mpeg";
+	}
+	return null;
+}
+
+export interface SongUpload {
+	title: string;
+	mime: string;
+	durationSeconds: number | null;
+	bytes: ArrayBuffer;
+}
+
+/**
+ * Validates an uploaded song: size against the configured cap, and the format against the
+ * file's own bytes. `duration` is what the uploading browser measured, so it is only sanity
+ * checked — a song whose length could not be read is stored without one.
+ */
+export function parseSongUpload(bytes: ArrayBuffer, title: unknown, duration: string | undefined): SongUpload {
+	if (bytes.byteLength === 0) throw new ValidationError("the file is empty");
+	if (bytes.byteLength > MUSIC.maxBytes) {
+		throw new ValidationError(`the file is too large (max ${Math.round(MUSIC.maxBytes / (1024 * 1024))} MB)`);
+	}
+	const mime = sniffAudioType(new Uint8Array(bytes.slice(0, 16)));
+	if (!mime || !MUSIC.audioTypes.includes(mime)) {
+		throw new ValidationError("unsupported audio format (MP3, M4A/AAC, OGG/Opus, FLAC and WAV are accepted)");
+	}
+	const name = asString(title, "title", MUSIC.titleMaxLength).trim();
+	if (name.length === 0) throw new ValidationError("title is required");
+	const seconds = duration === undefined ? Number.NaN : Number(duration);
+	const durationSeconds = Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+	return { title: name, mime, durationSeconds, bytes };
+}
+
+/** Parses {title} for renaming a song. */
+export function parseSongTitle(body: unknown): { title: string } {
+	const rec = asRecord(body, "body");
+	const title = asString(rec.title, "title", MUSIC.titleMaxLength).trim();
+	if (title.length === 0) throw new ValidationError("title is required");
+	return { title };
+}
+
+/** Parses {ids: [songId...]} for reordering the playlist. */
+export function parseSongOrder(body: unknown): string[] {
+	const rec = asRecord(body, "body");
+	if (!Array.isArray(rec.ids)) throw new ValidationError("ids must be an array");
+	if (rec.ids.length > LIMITS.playlistMaxSongs) throw new ValidationError("too many songs");
+	return rec.ids.map((id) => asId(id, "song id"));
+}
+
+function asPositionMs(value: unknown): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) throw new ValidationError("positionMs must be a number");
+	if (value < 0) throw new ValidationError("positionMs must not be negative");
+	return Math.round(value);
+}
+
+/** Parses a playback command; the resulting position is always recomputed by the server. */
+export function parsePlaybackCommand(body: unknown): PlaybackCommand {
+	const rec = asRecord(body, "body");
+	switch (rec.action) {
+		case "play":
+			return {
+				action: "play",
+				...(rec.songId === undefined ? {} : { songId: asId(rec.songId, "songId") }),
+				...(rec.positionMs === undefined ? {} : { positionMs: asPositionMs(rec.positionMs) }),
+			};
+		case "pause":
+			return { action: "pause" };
+		case "seek":
+			return { action: "seek", positionMs: asPositionMs(rec.positionMs) };
+		case "skip":
+			if (typeof rec.deltaMs !== "number" || !Number.isFinite(rec.deltaMs)) {
+				throw new ValidationError("deltaMs must be a number");
+			}
+			return { action: "skip", deltaMs: Math.round(rec.deltaMs) };
+		case "next":
+			return {
+				action: "next",
+				...(rec.fromSongId === undefined ? {} : { fromSongId: asId(rec.fromSongId, "fromSongId") }),
+			};
+		case "previous":
+			return { action: "previous" };
+		default:
+			throw new ValidationError("unknown playback action");
+	}
 }
 
 function parseBoard(value: unknown): Board {

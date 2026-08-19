@@ -1,4 +1,7 @@
-/** Minimal hash router: #/b/<boardId>[/t/<taskId>], #/c/<channelId>, #/calendar[/t/<taskId>], #/settings. */
+/**
+ * Minimal hash router: #/b/<boardId>[/t/<taskId>], #/c/<channelId>, #/calendar[/t/<taskId>],
+ * #/music, #/screen, #/settings.
+ */
 import { useSyncExternalStore } from "react";
 import { CLIENT } from "../../app.config";
 
@@ -9,6 +12,10 @@ export type Route =
 	| { kind: "channel"; channelId: string }
 	/** Month calendar of due dates across every board; `taskId` is the task whose editor is open. */
 	| { kind: "calendar"; taskId?: string }
+	/** The shared playlist and player. */
+	| { kind: "music" }
+	/** The other user's screen share, filling the main pane. */
+	| { kind: "screen" }
 	| { kind: "settings" };
 
 export function parseHash(hash: string): Route {
@@ -23,6 +30,8 @@ export function parseHash(hash: string): Route {
 		if (parts[1] === "t" && parts[2]) return { kind: "calendar", taskId: decodeURIComponent(parts[2]) };
 		return { kind: "calendar" };
 	}
+	if (parts[0] === "music") return { kind: "music" };
+	if (parts[0] === "screen") return { kind: "screen" };
 	if (parts[0] === "settings") return { kind: "settings" };
 	return { kind: "home" };
 }
@@ -37,6 +46,10 @@ export function routeToHash(route: Route): string {
 			return `#/c/${encodeURIComponent(route.channelId)}`;
 		case "calendar":
 			return route.taskId ? `#/calendar/t/${encodeURIComponent(route.taskId)}` : "#/calendar";
+		case "music":
+			return "#/music";
+		case "screen":
+			return "#/screen";
 		case "settings":
 			return "#/settings";
 		default:

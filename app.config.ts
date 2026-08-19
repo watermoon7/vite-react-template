@@ -82,6 +82,7 @@ export const LIMITS = {
 	channelNameMaxLength: 60,
 	messageTextMaxLength: 4_000,
 	restoreMaxItems: 5_000,
+	playlistMaxSongs: 1_000,
 };
 
 /** Text channels: Discord-style message logs shared by both users. */
@@ -103,6 +104,57 @@ export const CHANNELS = {
 	stickToBottomPx: 40,
 };
 
+/**
+ * Passive voice room: one always-existing room both users can join and leave at will.
+ * Membership is live socket state in the Durable Object; the media itself is a direct
+ * 1:1 WebRTC connection, so nothing below sizes a server.
+ */
+export const VOICE = {
+	/**
+	 * Fallback ICE servers used when no Cloudflare Realtime TURN credentials are configured.
+	 * STUN alone is enough for most home networks; a relay is only needed behind symmetric NAT.
+	 */
+	fallbackIceServers: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"],
+	/** Lifetime, in seconds, of a minted TURN credential. */
+	turnCredentialTtlSeconds: 12 * 60 * 60,
+	/** Constraints for the microphone capture. */
+	micConstraints: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+	/** Longest edge and frame rate requested when sharing a screen. */
+	screenConstraints: { width: 1920, height: 1080, frameRate: 30 },
+	/** How long a peer connection may sit in "disconnected" before ICE is restarted, in ms. */
+	iceRestartAfterMs: 4_000,
+};
+
+/**
+ * Shared music player: a playlist in the Durable Object, audio files in R2, and one
+ * playback state (song, playing, position at a server timestamp) pushed to every client.
+ */
+export const MUSIC = {
+	/** Audio formats accepted by the server (checked by content, not by the declared type). */
+	audioTypes: ["audio/mpeg", "audio/mp4", "audio/aac", "audio/ogg", "audio/flac", "audio/wav"],
+	/** File extensions offered by the file picker. */
+	fileAccept: ".mp3,.m4a,.aac,.ogg,.oga,.opus,.flac,.wav,audio/*",
+	/** Largest song accepted, in bytes. Songs live in R2, so this is a sanity cap, not a row limit. */
+	maxBytes: 30 * 1024 * 1024,
+	/** Longest song title kept. */
+	titleMaxLength: 200,
+	/** How often each client compares its player against the shared position, in ms. */
+	syncIntervalMs: 1_000,
+	/**
+	 * Drift, in ms, that a client tolerates before it corrects its own player. Below roughly
+	 * this the correction itself is more audible than the drift.
+	 */
+	driftToleranceMs: 200,
+	/** Drift, in ms, beyond which the client hard-seeks instead of nudging the playback rate. */
+	driftSeekMs: 1_500,
+	/** Playback rate nudge used to absorb drift between the tolerance and the seek threshold. */
+	driftRateNudge: 0.02,
+	/** Seconds skipped by the back/forward buttons. */
+	skipSeconds: 10,
+	/** Pressing "previous" this far into a song restarts it instead of going back one. */
+	previousRestartsAfterSeconds: 3,
+};
+
 /** Interface scale ("zoom"): scales the whole app, like the browser's Ctrl +/-. */
 export const DISPLAY = {
 	/** Selectable scale factors, ascending. Mirrors the browser's own zoom levels. */
@@ -122,6 +174,15 @@ export const CLIENT = {
 	saveDebounceMs: 500,
 	/** WebSocket keep-alive ping interval. */
 	wsPingIntervalMs: 30_000,
+	/** Server-clock estimation over the WebSocket (keeps the two music players together). */
+	clock: {
+		/** Round trips sent back to back when the socket opens; the fastest one wins. */
+		burstSamples: 4,
+		/** Gap between the round trips of a burst, in ms. */
+		burstSpacingMs: 120,
+		/** How often a fresh burst is sent to track clock drift, in ms. */
+		refreshIntervalMs: 60_000,
+	},
 	/** WebSocket reconnect backoff bounds. */
 	wsReconnectMinMs: 1_000,
 	wsReconnectMaxMs: 30_000,
@@ -153,5 +214,7 @@ export const CLIENT = {
 		taskSort: "kanban:task-sort",
 		/** Unsent chat drafts, as a JSON object keyed by channel id. */
 		chatDrafts: "kanban:chat-drafts:v1",
+		/** Player volume (0-1) in this browser; volume is per-listener, not shared. */
+		musicVolume: "kanban:music-volume",
 	},
 };

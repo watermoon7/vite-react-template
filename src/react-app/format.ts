@@ -80,3 +80,29 @@ export function formatDateTime(isoTimestamp: string): string {
 export function currentUserName(id: UserId | null): string {
 	return id ? userName(id) : "";
 }
+
+/** A duration in milliseconds as m:ss (or h:mm:ss past an hour). Negative values clamp to 0. */
+export function formatDuration(ms: number): string {
+	if (!Number.isFinite(ms)) return "–:––";
+	const total = Math.max(0, Math.floor(ms / 1000));
+	const seconds = String(total % 60).padStart(2, "0");
+	const minutes = Math.floor(total / 60) % 60;
+	const hours = Math.floor(total / 3600);
+	if (hours === 0) return `${minutes}:${seconds}`;
+	return `${hours}:${String(minutes).padStart(2, "0")}:${seconds}`;
+}
+
+/** A file size in bytes as a short human string, e.g. "4.2 MB". */
+export function formatBytes(bytes: number): string {
+	if (!Number.isFinite(bytes) || bytes < 0) return "";
+	if (bytes < 1024) return `${bytes} B`;
+	const units = ["kB", "MB", "GB"];
+	let value = bytes / 1024;
+	let unit = 0;
+	// Bounded by the unit list, so at most two steps.
+	while (value >= 1024 && unit < units.length - 1) {
+		value /= 1024;
+		unit++;
+	}
+	return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}

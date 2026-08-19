@@ -5,10 +5,21 @@
  */
 import { useSyncExternalStore } from "react";
 import { CLIENT } from "../../app.config";
-import type { AppState, BackupData, ColumnOrder, RestoreResult, Task, TaskPatch, UserId } from "../shared/types";
+import type {
+	AppState,
+	BackupData,
+	ColumnOrder,
+	PlaybackCommand,
+	RestoreResult,
+	ServerMessage,
+	Task,
+	TaskPatch,
+	UserId,
+} from "../shared/types";
 import { api, ApiError } from "./api";
 import { recordStateTransition } from "./backups";
 import { pruneDrafts } from "./drafts";
+import { bindSocketTransport, emitSocketEvent } from "./socket";
 import { showLoginStyle } from "./style";
 
 export type AuthStatus = "unknown" | "authenticated" | "unauthenticated";
@@ -39,6 +50,17 @@ function subscribe(listener: () => void): () => void {
 /** React hook returning the whole store state (reference-stable between updates). */
 export function useStore(): StoreState {
 	return useSyncExternalStore(subscribe, () => state);
+}
+
+/** The store state, for modules that run outside React (the music engine). */
+export function storeState(): StoreState {
+	return state;
+}
+
+/** Subscribes to store changes outside React. Returns the unsubscribe function. */
+export function subscribeStore(listener: () => void): () => void {
+	if (typeof listener !== "function") throw new Error("listener must be a function");
+	return subscribe(listener);
 }
 
 /**
@@ -101,19 +123,27 @@ function connectSocket(): void {
 		setState({ live: true });
 		void resync();
 		pingTimer = window.setInterval(() => ws.send("ping"), CLIENT.wsPingIntervalMs);
+		// The clock and the voice room ride on this socket too; hand them a way to send on it.
+		bindSocketTransport((message) => ws.send(JSON.stringify(message)));
+		emitSocketEvent({ kind: "open" });
 	};
 	ws.onmessage = (event) => {
+		let message: ServerMessage;
 		try {
-			const message = JSON.parse(String(event.data)) as { type?: string; state?: AppState };
-			if (message.type === "state" && message.state) applyState(message.state);
+			message = JSON.parse(String(event.data)) as ServerMessage;
 		} catch {
-			// ignore malformed frames
+			return; // ignore malformed frames
 		}
+		if (typeof message !== "object" || message === null || typeof message.type !== "string") return;
+		if (message.type === "state" && message.state) applyState(message.state);
+		emitSocketEvent({ kind: "message", message });
 	};
 	ws.onerror = () => ws.close();
 	ws.onclose = () => {
 		window.clearInterval(pingTimer);
 		if (socket === ws) socket = null;
+		bindSocketTransport(null);
+		emitSocketEvent({ kind: "closed" });
 		setState({ live: false });
 		if (state.auth !== "authenticated") return;
 		window.clearTimeout(reconnectTimer);
@@ -258,6 +288,52 @@ export async function postMessage(channelId: string, text: string, image?: strin
 
 export async function deleteMessage(id: string): Promise<boolean> {
 	return (await mutate(() => api.deleteMessage(id), (s) => s)) !== null;
+}
+
+// ---------- Music ----------
+
+/**
+ * Uploads a song and appends it to the shared playlist. `onProgress` is called with a
+ * fraction between 0 and 1 while the bytes go up.
+ */
+export async function uploadSong(
+	file: File,
+	title: string,
+	durationSeconds: number | null,
+	onProgress: (fraction: number) => void,
+): Promise<string | null> {
+	if (!(file instanceof File)) throw new Error("file must be a File");
+	if (title.trim().length === 0) throw new Error("title is required");
+	const result = await mutate(() => api.uploadSong(file, title.trim(), durationSeconds, onProgress), (r) => r.state);
+	return result?.songId ?? null;
+}
+
+export async function renameSong(id: string, title: string): Promise<boolean> {
+	return (await mutate(() => api.renameSong(id, title), (s) => s)) !== null;
+}
+
+export async function deleteSong(id: string): Promise<boolean> {
+	return (await mutate(() => api.deleteSong(id), (s) => s)) !== null;
+}
+
+/**
+ * Reorders the playlist. Applied optimistically like a board drag, then confirmed by the
+ * server — a dragged song must not snap back while the request is in flight.
+ */
+export async function reorderSongs(ids: string[]): Promise<boolean> {
+	const data = state.data;
+	if (!data) return false;
+	const rank = new Map(ids.map((id, index) => [id, index]));
+	const songs = data.songs
+		.map((song) => ({ ...song, position: rank.get(song.id) ?? song.position }))
+		.sort((a, b) => a.position - b.position);
+	setState({ data: { ...data, songs } });
+	return (await mutate(() => api.reorderSongs(ids), (s) => s)) !== null;
+}
+
+/** Sends a play/pause/seek/next/previous to the shared playback state. */
+export async function sendPlayback(command: PlaybackCommand): Promise<boolean> {
+	return (await mutate(() => api.playback(command), (s) => s)) !== null;
 }
 
 export async function restoreBackup(data: BackupData): Promise<RestoreResult | null> {

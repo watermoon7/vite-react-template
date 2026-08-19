@@ -1442,6 +1442,312 @@ input[type="date"].input {
 	background: linear-gradient(var(--done-soft), var(--done-soft)) var(--surface-1);
 }
 
+/* ---------- Voice room ---------- */
+.voice-members {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 2px 0 8px;
+}
+/* A name with its presence dot. The dot is the same one the connection status uses, so
+   "lit" means the same thing in both places. */
+.voice-member {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 3px 8px;
+	font-size: 13px;
+}
+.voice-member .icon {
+	color: var(--text-muted);
+}
+.voice-join,
+.voice-watch {
+	height: 30px;
+}
+.voice-watch {
+	margin-top: 8px;
+}
+.voice-status {
+	padding: 0 8px 6px;
+}
+/* The in-call strip: mute, share, leave — big enough to hit without hunting. */
+.voice-controls {
+	display: flex;
+	gap: 6px;
+	padding: 0 4px;
+}
+.voice-btn {
+	width: 34px;
+	height: 30px;
+	border: 1px solid var(--border-strong);
+	background: var(--bg);
+	color: var(--text);
+}
+.voice-btn:hover:not(:disabled) {
+	background: var(--hover);
+}
+.voice-btn:disabled {
+	opacity: 0.45;
+}
+/* An engaged toggle (muted, or sharing) is filled rather than outlined, so the state is
+   readable at a glance instead of by comparing two similar icons. */
+.voice-btn.on {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+	color: var(--accent);
+}
+.voice-btn.voice-leave:hover {
+	background: var(--danger-soft);
+	border-color: var(--danger);
+	color: var(--danger);
+}
+.voice-hint {
+	padding: 8px 8px 0;
+	line-height: 1.5;
+}
+.voice-error {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 6px 8px 0;
+}
+/* A button that reads as a link, for an action offered inside a sentence. */
+.link-btn {
+	color: var(--accent);
+	text-decoration: underline;
+	font: inherit;
+}
+/* The Music row grows a second line naming what is playing. */
+.nav-music {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.nav-subtitle {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.nav-item.active .nav-subtitle {
+	color: inherit;
+	opacity: 0.75;
+}
+
+/* ---------- Music ---------- */
+.music {
+	position: relative;
+}
+/* The transport sits above the playlist and never scrolls away: it is the one control
+   surface both users are driving. */
+.music-player {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas:
+		"now transport"
+		"seek volume"
+		"join join";
+	align-items: center;
+	gap: 10px 20px;
+	padding: 14px 20px;
+	border-bottom: 1px solid var(--border);
+	flex-shrink: 0;
+}
+.music-now {
+	grid-area: now;
+	min-width: 0;
+}
+.music-now-title {
+	font-size: 15px;
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.music-transport {
+	grid-area: transport;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.music-transport .icon-btn {
+	width: 32px;
+	height: 30px;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+.music-transport .icon-btn:disabled {
+	opacity: 0.4;
+}
+.music-play {
+	width: 40px;
+	justify-content: center;
+	padding: 0;
+}
+.music-seek {
+	grid-area: seek;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+.music-time {
+	font-variant-numeric: tabular-nums;
+	flex-shrink: 0;
+}
+.music-volume {
+	grid-area: volume;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.music-volume .music-range {
+	width: 110px;
+}
+.music-range {
+	flex: 1;
+	min-width: 0;
+	accent-color: var(--accent);
+}
+.music-range:disabled {
+	opacity: 0.5;
+}
+.music-join {
+	grid-area: join;
+	justify-self: start;
+}
+.music-upload {
+	padding: 10px 20px;
+	border-bottom: 1px solid var(--border);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.music-upload-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.progress {
+	height: 6px;
+	border-radius: 999px;
+	background: var(--surface-2);
+	overflow: hidden;
+}
+.progress-bar {
+	height: 100%;
+	background: var(--accent);
+	transition: width 120ms linear;
+}
+.music-error {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 20px;
+}
+/* The playlist is a dnd drop zone and its own scroll container, so it needs the same
+   zoom cancellation as a board column — see the .column-list note for why. */
+.playlist {
+	flex: 1;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	zoom: var(--app-scale-inverse, 1);
+	padding: calc(8px * var(--app-scale)) calc(20px * var(--app-scale)) calc(40px * var(--app-scale));
+}
+.playlist > :not([data-rfd-placeholder-context-id]) {
+	zoom: var(--app-scale);
+}
+.song {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 8px;
+	border-radius: var(--radius);
+	background: var(--bg);
+}
+.song:hover {
+	background: var(--hover);
+}
+.song.current {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+.song.dragging {
+	box-shadow: 0 2px 8px var(--shadow-color);
+	background: var(--bg);
+}
+.song-grip {
+	display: inline-flex;
+	color: var(--text-muted);
+	cursor: grab;
+	flex-shrink: 0;
+}
+.song-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+	text-align: left;
+	color: inherit;
+	font: inherit;
+}
+.song-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.song-meta {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+.song.current .song-meta {
+	color: inherit;
+	opacity: 0.8;
+}
+.song .nav-action {
+	opacity: 0;
+}
+.song:hover .nav-action,
+.song .nav-action:focus-visible,
+.song:has(.confirm-pop) .nav-action {
+	opacity: 1;
+}
+.song-rename {
+	flex: 1;
+}
+/* Dragging audio files anywhere over the page marks the whole pane as the drop target. */
+.music.dropping::after {
+	content: "Drop to add to the playlist";
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 600;
+	border: 2px dashed var(--accent);
+	border-radius: var(--radius);
+	pointer-events: none;
+}
+
+/* ---------- Screen share ---------- */
+.screen-stage {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #000;
+}
+/* Letterboxed inside the pane: a share is whatever shape the other machine's screen is. */
+.screen-video {
+	max-width: 100%;
+	max-height: 100%;
+	display: block;
+}
+
 /* ---------- Confirmation popover ----------
    Rendered by Confirm.tsx next to the button that opened it. .confirm-anchor wraps the
    button and positions the popover; the side/align classes come from the placement. */
@@ -1704,6 +2010,27 @@ input[type="date"].input {
 		inset 0 1px 0 var(--glass-highlight);
 	-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
 	backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+}
+
+:where([data-style="glass"]) .song {
+	background: transparent;
+}
+/* Deliberately no backdrop-filter here: this list contains draggable rows, and a filtered
+   ancestor becomes the containing block for the fixed-position card dnd lifts. */
+:where([data-style="glass"]) .song.dragging {
+	background: var(--surface-1);
+	border: 1px solid var(--glass-edge);
+	border-radius: var(--radius-md);
+}
+:where([data-style="glass"]) .voice-btn {
+	background: var(--surface-2);
+	border-color: var(--glass-edge);
+}
+:where([data-style="glass"]) .progress {
+	background: var(--surface-2);
+}
+:where([data-style="glass"]) .progress-bar {
+	background: var(--accent-gradient);
 }
 
 :where([data-style="glass"]) .confirm-pop {
