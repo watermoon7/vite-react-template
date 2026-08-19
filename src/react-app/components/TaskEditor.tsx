@@ -1,8 +1,9 @@
 /** Side panel for editing one task. Autosaves; local edits win until the server confirms them. */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PRIORITIES, USERS } from "../../../app.config";
-import type { Assignee, Priority, Task, TaskPatch } from "../../shared/types";
+import type { Assignee, Board, Priority, Task, TaskPatch } from "../../shared/types";
 import { formatDateTime, formatRelative, userName } from "../format";
+import { routeToHash } from "../router";
 import { deleteTask, updateTask } from "../store";
 import { Segmented } from "./Segmented";
 import { useDebouncedSave } from "../useDebouncedSave";
@@ -12,6 +13,11 @@ interface Props {
 	/** Focus the description on open (used for freshly created tasks). */
 	autoFocus: boolean;
 	onClose: () => void;
+	/**
+	 * The task's board, when the editor is shown somewhere the board is not otherwise visible
+	 * (the calendar). The header then names the board and links to the task on it.
+	 */
+	board?: Board;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -42,7 +48,7 @@ const ASSIGNEE_OPTIONS: { value: Assignee; label: string }[] = [
 	{ value: "both", label: "Both" },
 ];
 
-export function TaskEditor({ task, autoFocus, onClose }: Props) {
+export function TaskEditor({ task, autoFocus, onClose, board }: Props) {
 	// Local edits not yet reflected by the server; a key is dropped once the store matches it.
 	const [draft, setDraft] = useState<TaskPatch>({});
 	const descriptionRef = useRef<HTMLTextAreaElement>(null);
@@ -76,7 +82,21 @@ export function TaskEditor({ task, autoFocus, onClose }: Props) {
 	return (
 		<aside className="editor" aria-label="Task details">
 			<header className="editor-header">
-				<span className="editor-title">Task</span>
+				<span className="editor-title">
+					Task
+					{board && (
+						<>
+							{" "}
+							<a
+								className="editor-context"
+								href={routeToHash({ kind: "board", boardId: board.id, taskId: task.id })}
+								title="Open on its board"
+							>
+								in {board.name}
+							</a>
+						</>
+					)}
+				</span>
 				<span className="save-status">
 					{status === "idle" ? "" : status === "saving" ? "Saving…" : status === "error" ? "Not saved" : "Unsaved"}
 				</span>

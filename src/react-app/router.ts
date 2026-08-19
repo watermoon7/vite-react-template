@@ -1,4 +1,4 @@
-/** Minimal hash router: #/b/<boardId>[/t/<taskId>], #/notes/shared, #/notes/personal, #/settings. */
+/** Minimal hash router: #/b/<boardId>[/t/<taskId>], #/notes/shared, #/notes/personal, #/calendar[/t/<taskId>], #/settings. */
 import { useSyncExternalStore } from "react";
 import { CLIENT } from "../../app.config";
 import type { NotesScope } from "../shared/types";
@@ -8,6 +8,8 @@ export type Route =
 	/** `taskId` is the task whose editor is open, so a task can be linked to directly. */
 	| { kind: "board"; boardId: string; taskId?: string }
 	| { kind: "notes"; scope: NotesScope }
+	/** Month calendar of due dates across every board; `taskId` is the task whose editor is open. */
+	| { kind: "calendar"; taskId?: string }
 	| { kind: "settings" };
 
 export function parseHash(hash: string): Route {
@@ -19,6 +21,10 @@ export function parseHash(hash: string): Route {
 	}
 	if (parts[0] === "notes" && (parts[1] === "shared" || parts[1] === "personal")) {
 		return { kind: "notes", scope: parts[1] };
+	}
+	if (parts[0] === "calendar") {
+		if (parts[1] === "t" && parts[2]) return { kind: "calendar", taskId: decodeURIComponent(parts[2]) };
+		return { kind: "calendar" };
 	}
 	if (parts[0] === "settings") return { kind: "settings" };
 	return { kind: "home" };
@@ -32,6 +38,8 @@ export function routeToHash(route: Route): string {
 		}
 		case "notes":
 			return `#/notes/${route.scope}`;
+		case "calendar":
+			return route.taskId ? `#/calendar/t/${encodeURIComponent(route.taskId)}` : "#/calendar";
 		case "settings":
 			return "#/settings";
 		default:

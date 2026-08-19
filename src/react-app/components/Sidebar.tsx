@@ -1,4 +1,4 @@
-/** Left panel: task search, board list (create/delete/switch), notes, settings, connection status. */
+/** Left panel: task search, board list (create/delete/switch), notes, calendar, settings, connection status. */
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Board, Task, UserId } from "../../shared/types";
 import { userName } from "../format";
@@ -218,6 +218,11 @@ export function Sidebar({ route, boards, tasks, user, live }: Props) {
 
 			<div className="sidebar-footer">
 				<ul className="nav-list">
+					<li className={"nav-item" + (route.kind === "calendar" ? " active" : "")}>
+						<a href={routeToHash({ kind: "calendar" })} className="nav-link">
+							Calendar
+						</a>
+					</li>
 					<li className={"nav-item" + (route.kind === "settings" ? " active" : "")}>
 						<a href={routeToHash({ kind: "settings" })} className="nav-link">
 							Settings
