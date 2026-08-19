@@ -6,13 +6,16 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="color-scheme" content="light dark" />
 		<title>Kanban</title>
-		<!-- Applies a forced theme before first paint, so overriding the system setting does
-		     not flash the wrong colours. The key must match CLIENT.storageKeys.theme in
+		<!-- Applies a forced theme and the last used style before first paint, so overriding
+		     the system setting does not flash the wrong colours and the glass style does not
+		     flash the classic one. The keys must match CLIENT.storageKeys.theme and .style in
 		     app.config.ts. "system" needs nothing here: it is a pure CSS media query. -->
 		<script>
 			try {
 				var t = localStorage.getItem("kanban:theme");
 				if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+				var s = localStorage.getItem("kanban:style");
+				if (s) document.documentElement.dataset.style = s;
 			} catch (e) {}
 		</script>
 	</head>

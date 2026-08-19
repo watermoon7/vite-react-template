@@ -94,6 +94,140 @@
 	color-scheme: dark;
 }
 
+/* ---------- Glass style tokens ----------
+   data-style="glass" on <html> (see style.ts) swaps the palette for translucent fills over
+   a colour backdrop and adds the tokens the glass rules at the end of this file use. The
+   light/dark split works exactly like the classic one above: this block holds the light
+   values plus everything mode-independent, and the two dark blocks below it — one more
+   specific than this block, so they win however the theme was chosen — override the
+   colours. KEEP THE TWO GLASS DARK BLOCKS IN SYNC. Nothing here touches color-scheme: the
+   classic blocks already set it from the theme, and the style does not change light/dark. */
+:root[data-style="glass"] {
+	--backdrop:
+		radial-gradient(1100px 720px at 6% -12%, rgba(129, 140, 248, 0.5), transparent 62%),
+		radial-gradient(900px 620px at 102% 8%, rgba(56, 189, 248, 0.38), transparent 62%),
+		radial-gradient(1000px 700px at 58% 112%, rgba(244, 114, 182, 0.34), transparent 62%),
+		linear-gradient(180deg, #eef1f9 0%, #e4e8f4 100%);
+	--backdrop-color: #eaedf7;
+	--bg: rgba(255, 255, 255, 0.62);
+	--surface-1: rgba(255, 255, 255, 0.5);
+	--surface-2: rgba(255, 255, 255, 0.28);
+	--surface-main: rgba(255, 255, 255, 0.22);
+	--hover: rgba(255, 255, 255, 0.85);
+	--card-hover: rgba(255, 255, 255, 0.86);
+	--border: rgba(15, 23, 42, 0.08);
+	--border-strong: rgba(15, 23, 42, 0.14);
+	/* Outer edge of a glass pane: a light line that reads as a lit rim. */
+	--glass-edge: rgba(255, 255, 255, 0.7);
+	--glass-highlight: rgba(255, 255, 255, 0.95);
+	--text: #0f172a;
+	--text-muted: #5b6577;
+	--accent: #4f46e5;
+	--accent-soft: rgba(79, 70, 229, 0.12);
+	--accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+	--accent-glow: rgba(99, 102, 241, 0.38);
+	--danger: #b91c1c;
+	--danger-soft: rgba(239, 68, 68, 0.12);
+	--ok: #059669;
+	--prio-low: #64748b;
+	--prio-medium: #b45309;
+	--prio-high: #b91c1c;
+	--inverse-bg: #4f46e5;
+	--inverse-bg-hover: #4338ca;
+	--inverse-fg: #ffffff;
+	--shadow-color: rgba(30, 41, 99, 0.2);
+	--panel-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px -12px rgba(30, 41, 99, 0.25);
+	--card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px -6px rgba(30, 41, 99, 0.16);
+	--card-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 28px -8px rgba(30, 41, 99, 0.28);
+	--radius: 8px;
+	--radius-md: 12px;
+	--radius-lg: 16px;
+	--glass-blur: 24px;
+	--glass-blur-sm: 12px;
+	--font: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Glass, dark, following the system — unless Settings has forced light.
+   KEEP IN SYNC with :root[data-style="glass"][data-theme="dark"] below. */
+@media (prefers-color-scheme: dark) {
+	:root[data-style="glass"]:not([data-theme="light"]) {
+		--backdrop:
+			radial-gradient(1100px 720px at 6% -12%, rgba(99, 102, 241, 0.4), transparent 62%),
+			radial-gradient(900px 620px at 102% 8%, rgba(34, 211, 238, 0.16), transparent 62%),
+			radial-gradient(1000px 700px at 58% 112%, rgba(217, 70, 239, 0.2), transparent 62%),
+			linear-gradient(180deg, #0d1124 0%, #090c18 100%);
+		--backdrop-color: #0b0f1f;
+		--bg: rgba(255, 255, 255, 0.07);
+		--surface-1: rgba(255, 255, 255, 0.055);
+		--surface-2: rgba(255, 255, 255, 0.04);
+		--surface-main: rgba(255, 255, 255, 0.035);
+		--hover: rgba(255, 255, 255, 0.11);
+		--card-hover: rgba(255, 255, 255, 0.11);
+		--border: rgba(255, 255, 255, 0.08);
+		--border-strong: rgba(255, 255, 255, 0.16);
+		--glass-edge: rgba(255, 255, 255, 0.11);
+		--glass-highlight: rgba(255, 255, 255, 0.14);
+		--text: #e7eaf3;
+		--text-muted: #97a1b6;
+		--accent: #a5b4fc;
+		--accent-soft: rgba(129, 140, 248, 0.2);
+		--accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+		--accent-glow: rgba(129, 140, 248, 0.42);
+		--danger: #fca5a5;
+		--danger-soft: rgba(248, 113, 113, 0.16);
+		--ok: #34d399;
+		--prio-low: #94a3b8;
+		--prio-medium: #fbbf24;
+		--prio-high: #fca5a5;
+		--inverse-bg: #6366f1;
+		--inverse-bg-hover: #4f46e5;
+		--inverse-fg: #ffffff;
+		--shadow-color: rgba(0, 0, 0, 0.55);
+		--panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+		--card-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 16px -6px rgba(0, 0, 0, 0.45);
+		--card-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 12px 28px -8px rgba(0, 0, 0, 0.6);
+	}
+}
+
+/* Glass, dark, forced from Settings. KEEP IN SYNC with the block above. */
+:root[data-style="glass"][data-theme="dark"] {
+	--backdrop:
+		radial-gradient(1100px 720px at 6% -12%, rgba(99, 102, 241, 0.4), transparent 62%),
+		radial-gradient(900px 620px at 102% 8%, rgba(34, 211, 238, 0.16), transparent 62%),
+		radial-gradient(1000px 700px at 58% 112%, rgba(217, 70, 239, 0.2), transparent 62%),
+		linear-gradient(180deg, #0d1124 0%, #090c18 100%);
+	--backdrop-color: #0b0f1f;
+	--bg: rgba(255, 255, 255, 0.07);
+	--surface-1: rgba(255, 255, 255, 0.055);
+	--surface-2: rgba(255, 255, 255, 0.04);
+	--surface-main: rgba(255, 255, 255, 0.035);
+	--hover: rgba(255, 255, 255, 0.11);
+	--card-hover: rgba(255, 255, 255, 0.11);
+	--border: rgba(255, 255, 255, 0.08);
+	--border-strong: rgba(255, 255, 255, 0.16);
+	--glass-edge: rgba(255, 255, 255, 0.11);
+	--glass-highlight: rgba(255, 255, 255, 0.14);
+	--text: #e7eaf3;
+	--text-muted: #97a1b6;
+	--accent: #a5b4fc;
+	--accent-soft: rgba(129, 140, 248, 0.2);
+	--accent-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+	--accent-glow: rgba(129, 140, 248, 0.42);
+	--danger: #fca5a5;
+	--danger-soft: rgba(248, 113, 113, 0.16);
+	--ok: #34d399;
+	--prio-low: #94a3b8;
+	--prio-medium: #fbbf24;
+	--prio-high: #fca5a5;
+	--inverse-bg: #6366f1;
+	--inverse-bg-hover: #4f46e5;
+	--inverse-fg: #ffffff;
+	--shadow-color: rgba(0, 0, 0, 0.55);
+	--panel-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+	--card-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 16px -6px rgba(0, 0, 0, 0.45);
+	--card-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.25), 0 12px 28px -8px rgba(0, 0, 0, 0.6);
+}
+
 /* ---------- Reset ---------- */
 *,
 *::before,
@@ -831,6 +965,206 @@ input[type="date"].input {
 .form-error {
 	color: var(--danger);
 	font-size: 13px;
+}
+
+/* ---------- Glass style ----------
+   Applies only with data-style="glass" on <html>. Most of the look comes from the token
+   swap above; the rules here add what tokens cannot: the colour backdrop, translucent
+   panes with backdrop blur, larger radii, layered shadows and gradient accents.
+
+   The :where() prefix has zero specificity, so each rule beats the base rule for the same
+   selector (it comes later) but not the base state variants (.card.selected, .btn-ghost,
+   .seg-btn.on, …), which keep applying on top. Rules that must beat a variant name it.
+
+   Blur creates a containing block for position: fixed descendants, and @hello-pangea/dnd
+   positions the dragged card with position: fixed — so no ancestor of a card (.main,
+   .columns, .column, .column-list) may have backdrop-filter. Cards themselves may. */
+
+:where([data-style="glass"]) body {
+	background: var(--backdrop) var(--backdrop-color);
+	background-repeat: no-repeat;
+}
+
+/* Two floating panes: the sidebar and the main area, with the backdrop showing between. */
+:where([data-style="glass"]) .app {
+	padding: 12px;
+	gap: 12px;
+}
+:where([data-style="glass"]) .sidebar,
+:where([data-style="glass"]) .main {
+	border: 1px solid var(--glass-edge);
+	border-radius: var(--radius-lg);
+	box-shadow:
+		var(--panel-shadow),
+		inset 0 1px 0 var(--glass-highlight);
+}
+:where([data-style="glass"]) .sidebar {
+	background: var(--surface-1);
+	-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+	backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+	padding: 16px 12px;
+}
+:where([data-style="glass"]) .main {
+	background: var(--surface-main);
+	/* Clips the pane's contents to its rounded corners. Not overflow: hidden, which
+	   @hello-pangea/dnd would treat as a scroll container. */
+	overflow: clip;
+}
+
+:where([data-style="glass"]) .sidebar-brand {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding-bottom: 18px;
+}
+:where([data-style="glass"]) .sidebar-brand::before {
+	content: "";
+	width: 12px;
+	height: 12px;
+	border-radius: 4px;
+	background: var(--accent-gradient);
+	box-shadow: 0 0 10px var(--accent-glow);
+}
+:where([data-style="glass"]) .nav-item,
+:where([data-style="glass"]) .btn,
+:where([data-style="glass"]) .icon-btn,
+:where([data-style="glass"]) .seg-btn,
+:where([data-style="glass"]) .stepper-btn {
+	transition:
+		background-color 140ms,
+		border-color 140ms,
+		box-shadow 140ms,
+		color 140ms;
+}
+:where([data-style="glass"]) .status-dot.on {
+	box-shadow: 0 0 8px var(--ok);
+}
+
+/* Gradient accent for the primary actions. Named with their hover variants because the
+   base .btn-primary:hover / .seg-btn:hover rules would otherwise paint over the gradient. */
+:where([data-style="glass"]) .btn-primary,
+:where([data-style="glass"]) .btn-primary:hover,
+:where([data-style="glass"]) .seg-btn.on,
+:where([data-style="glass"]) .seg-btn.on:hover {
+	background: var(--accent-gradient);
+	border-color: transparent;
+	color: #ffffff;
+}
+:where([data-style="glass"]) .btn-primary {
+	box-shadow: 0 4px 14px -4px var(--accent-glow);
+}
+:where([data-style="glass"]) .btn-primary:hover {
+	box-shadow: 0 6px 20px -4px var(--accent-glow);
+	filter: brightness(1.06) saturate(1.1);
+}
+:where([data-style="glass"]) .input:focus,
+:where([data-style="glass"]) .login input:focus {
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Board */
+:where([data-style="glass"]) .column {
+	border-color: var(--glass-edge);
+	border-radius: var(--radius-lg);
+	box-shadow: inset 0 1px 0 var(--glass-highlight);
+	overflow: clip; /* rounds the column list's scrollbar corners; see .main */
+}
+:where([data-style="glass"]) .column-header .count {
+	min-width: 20px;
+	padding: 0 7px;
+	border-radius: 999px;
+	background: var(--hover);
+	text-align: center;
+	line-height: 18px;
+}
+:where([data-style="glass"]) .card {
+	border-color: var(--glass-edge);
+	border-radius: var(--radius-md);
+	padding: 10px 12px 9px;
+	margin-bottom: 8px;
+	box-shadow: var(--card-shadow);
+	-webkit-backdrop-filter: blur(var(--glass-blur-sm));
+	backdrop-filter: blur(var(--glass-blur-sm));
+	transition:
+		background-color 140ms,
+		border-color 140ms,
+		box-shadow 140ms;
+}
+:where([data-style="glass"]) .card:hover {
+	background: var(--card-hover);
+	border-color: var(--glass-highlight);
+	box-shadow: var(--card-shadow-hover);
+}
+:where([data-style="glass"]) .card.selected {
+	border-color: var(--accent);
+	box-shadow:
+		0 0 0 1px var(--accent),
+		0 0 0 4px var(--accent-soft),
+		var(--card-shadow);
+}
+:where([data-style="glass"]) .card.dragging {
+	background: var(--card-hover);
+	border-color: var(--glass-highlight);
+	box-shadow: 0 18px 44px -8px var(--shadow-color);
+}
+:where([data-style="glass"]) .editor {
+	background: var(--surface-1);
+	border-left-color: var(--glass-edge);
+	-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+	backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+}
+
+/* Pages */
+:where([data-style="glass"]) .notes-editor {
+	background: transparent;
+}
+:where([data-style="glass"]) .login-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+:where([data-style="glass"]) .login-title::before {
+	content: "";
+	width: 14px;
+	height: 14px;
+	border-radius: 5px;
+	background: var(--accent-gradient);
+	box-shadow: 0 0 12px var(--accent-glow);
+}
+:where([data-style="glass"]) .login input {
+	background: var(--bg);
+}
+:where([data-style="glass"]) .login {
+	background: var(--surface-1);
+	border-color: var(--glass-edge);
+	border-radius: var(--radius-lg);
+	padding: 32px;
+	box-shadow:
+		var(--panel-shadow),
+		inset 0 1px 0 var(--glass-highlight);
+	-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+	backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+}
+
+/* Slim scrollbars sit better on glass than the default chrome. scrollbar-* is the
+   standard (Firefox, Chrome 121+); the ::-webkit-* rules cover Safari and older Chrome,
+   which ignore them once scrollbar-color is understood. */
+:where([data-style="glass"]) * {
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-strong) transparent;
+}
+:where([data-style="glass"]) *::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+:where([data-style="glass"]) *::-webkit-scrollbar-track {
+	background: transparent;
+}
+:where([data-style="glass"]) *::-webkit-scrollbar-thumb {
+	background: var(--border-strong);
+	border: 3px solid transparent;
+	border-radius: 999px;
+	background-clip: padding-box;
 }
 
 /* ---------- Narrow screens ---------- */
