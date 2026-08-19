@@ -1,6 +1,6 @@
 {
 	"name": "kanban",
-	"description": "Two-person kanban board on Cloudflare Workers",
+	"description": "Ordo — a two-person collaboration app on Cloudflare Workers",
 	"cloudflare": {
 		"label": "Vite React Template",
 		"products": [

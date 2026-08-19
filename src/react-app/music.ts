@@ -22,12 +22,17 @@ export interface MusicState {
 	needsGesture: boolean;
 	/** True while the current song is still loading enough to play. */
 	loading: boolean;
-	/** Playback volume in this browser (0-1). Per listener, not shared. */
+	/**
+	 * Where the volume slider sits in this browser (0-1). Per listener, not shared, and a
+	 * position on the slider rather than an amplitude — see `gainFor`.
+	 */
 	volume: number;
+	/** True while this browser is silenced, whatever the volume says. Per listener, not shared. */
+	muted: boolean;
 	error: string | null;
 }
 
-/** This browser's saved volume, or full volume on a browser that has never set one. */
+/** This browser's saved slider position, or full volume on a browser that has never set one. */
 function readStoredVolume(): number {
 	const stored = localStorage.getItem(CLIENT.storageKeys.musicVolume);
 	if (stored === null) return 1;
@@ -35,7 +40,30 @@ function readStoredVolume(): number {
 	return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 1;
 }
 
-let state: MusicState = { needsGesture: false, loading: false, volume: readStoredVolume(), error: null };
+/** Whether this browser left the player muted. Anything but a stored "true" counts as unmuted. */
+function readStoredMuted(): boolean {
+	return localStorage.getItem(CLIENT.storageKeys.musicMuted) === "true";
+}
+
+/**
+ * The amplitude a slider position asks for. The element's `volume` is a linear amplitude
+ * while loudness is heard as roughly its cube root, so wiring the slider straight to it
+ * spends the top of the travel on differences nobody can hear and crams every usable level
+ * into the bottom quarter. Curving the position first is what a physical volume knob's
+ * audio taper does, and it spreads those levels over the whole slider.
+ */
+function gainFor(position: number): number {
+	if (!Number.isFinite(position) || position < 0 || position > 1) throw new Error("volume must be between 0 and 1");
+	return position ** MUSIC.volumeCurveExponent;
+}
+
+let state: MusicState = {
+	needsGesture: false,
+	loading: false,
+	volume: readStoredVolume(),
+	muted: readStoredMuted(),
+	error: null,
+};
 const listeners = new Set<() => void>();
 
 function setState(patch: Partial<MusicState>): void {
@@ -72,7 +100,8 @@ export function songDurationMs(song: Song | null): number | null {
 
 const audio = new Audio();
 audio.preload = "auto";
-audio.volume = state.volume;
+audio.volume = gainFor(state.volume);
+audio.muted = state.muted;
 // In the document rather than detached, so the element behaves like any other media element
 // for the autoplay policy, devtools and the browser's own media controls.
 audio.hidden = true;
@@ -83,11 +112,23 @@ let loadedSongId: string | null = null;
 /** Song whose end has already been reported, so the two browsers do not skip two songs. */
 let advancedFrom: string | null = null;
 
+/** Moves the slider: `volume` is a position on it, not an amplitude. */
 export function setVolume(volume: number): void {
-	if (!Number.isFinite(volume) || volume < 0 || volume > 1) throw new Error("volume must be between 0 and 1");
-	audio.volume = volume;
+	const gain = gainFor(volume);
+	audio.volume = gain;
 	localStorage.setItem(CLIENT.storageKeys.musicVolume, String(volume));
+	// Reaching for the slider is a request to hear something, so it lifts a mute rather than
+	// leaving a control that visibly moves and audibly does nothing.
+	if (state.muted && gain > 0) setMuted(false);
 	setState({ volume });
+}
+
+/** Silences this browser's player. Local only: the other listener hears no change. */
+export function setMuted(muted: boolean): void {
+	if (typeof muted !== "boolean") throw new Error("muted must be a boolean");
+	audio.muted = muted;
+	localStorage.setItem(CLIENT.storageKeys.musicMuted, String(muted));
+	setState({ muted });
 }
 
 /** Starts audio from a click, which is the one thing browsers accept as permission to play. */

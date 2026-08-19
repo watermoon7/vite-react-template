@@ -4,6 +4,15 @@
  */
 
 /**
+ * What the app calls itself: the sign-in heading, the sidebar brand and the browser tab.
+ * Duplicated as the <title> in index.html, which is static and cannot import this file —
+ * change both together. Purely a label: the Worker, the Durable Object class, the session
+ * cookie and the localStorage keys are all still named "kanban", and renaming those would
+ * strand the stored data rather than move it.
+ */
+export const APP_NAME = "Ordo";
+
+/**
  * Visual styles offered in Settings. "classic" is the original flat look; "glass" is a
  * translucent, blurred look over a soft colour backdrop. Both follow the light/dark theme.
  * The ids are stored in localStorage and keyed on by app.css, so only the labels are renamable.
@@ -83,6 +92,10 @@ export const LIMITS = {
 	messageTextMaxLength: 4_000,
 	restoreMaxItems: 5_000,
 	playlistMaxSongs: 1_000,
+	/** Subtasks (the checklist inside a task): how many a task may hold. */
+	checklistMaxItems: 100,
+	/** Longest text of one subtask. */
+	checklistItemMaxLength: 500,
 };
 
 /** Text channels: Discord-style message logs shared by both users. */
@@ -136,6 +149,42 @@ export const VOICE = {
 	screenConstraints: { width: 1920, height: 1080, frameRate: 30 },
 	/** How long a peer connection may sit in "disconnected" before ICE is restarted, in ms. */
 	iceRestartAfterMs: 4_000,
+	/**
+	 * Microphone sensitivity: a gain applied to the captured microphone before it is sent, so
+	 * a quiet headset can be lifted and a hot desk mic pulled back. 1 is the microphone exactly
+	 * as the operating system delivers it.
+	 */
+	micGain: { min: 0, max: 3, step: 0.05, default: 1 },
+	/** The input meter drawn beside the sensitivity slider. */
+	micMeter: {
+		/** Analyser window. 1024 samples is ~21 ms at 48 kHz: enough to be steady, short enough to feel live. */
+		fftSize: 1024,
+		/** How often the meter is recomputed and published, in ms. */
+		updateIntervalMs: 80,
+		/**
+		 * Power the measured level is raised to before it is drawn. Speech sits in the bottom
+		 * tenth of a linear meter, which reads as a dead control; this lifts it into view.
+		 */
+		displayExponent: 0.5,
+	},
+	/**
+	 * The other person's voice, as heard in this browser only. `curveExponent` is the same
+	 * audio taper the music player uses — see MUSIC.volumeCurveExponent.
+	 */
+	peerVolume: { default: 1, curveExponent: 3 },
+	/** Short synthesised cues: joining, leaving, muting, screen sharing. */
+	sounds: {
+		/** Whether cues play until the user says otherwise in Settings. */
+		enabledByDefault: true,
+		/** Peak level of one tone, as a fraction of full scale. Cues sit under speech, not over it. */
+		volume: 0.22,
+		/** Length of one tone, in seconds. */
+		toneSeconds: 0.16,
+		/** Attack of a tone's envelope, in seconds; the remainder is an exponential decay. */
+		attackSeconds: 0.012,
+		/** Level of a cue about the other person, relative to a cue about your own action. */
+		peerLevelRatio: 0.7,
+	},
 };
 
 /**
@@ -172,6 +221,14 @@ export const MUSIC = {
 	skipSeconds: 10,
 	/** Pressing "previous" this far into a song restarts it instead of going back one. */
 	previousRestartsAfterSeconds: 3,
+	/**
+	 * Power the volume slider's position is raised to before it reaches the player. Loudness
+	 * is heard roughly as the cube root of amplitude, so a slider wired straight to the
+	 * element's (linear) volume crams every usable level into its bottom quarter; this is the
+	 * "audio taper" of a physical volume knob, which spreads them over the whole travel.
+	 * Higher values push the usable levels further up the slider.
+	 */
+	volumeCurveExponent: 3,
 };
 
 /** Interface scale ("zoom"): scales the whole app, like the browser's Ctrl +/-. */
@@ -191,6 +248,12 @@ export const CALENDAR = {
 export const CLIENT = {
 	/** Delay between the last keystroke and the save request. */
 	saveDebounceMs: 500,
+	/**
+	 * How long a card takes to glide from where it was to where a reorder has just put it
+	 * (see slideCards.ts). A sorted column is what makes the two differ: a card dropped in
+	 * the wrong place for the sort would otherwise be redrawn in the right one instantly.
+	 */
+	cardReorderMs: 220,
 	/** WebSocket keep-alive ping interval. */
 	wsPingIntervalMs: 30_000,
 	/** Server-clock estimation over the WebSocket (keeps the two music players together). */
@@ -244,5 +307,9 @@ export const CLIENT = {
 		chatDrafts: "kanban:chat-drafts:v1",
 		/** Player volume (0-1) in this browser; volume is per-listener, not shared. */
 		musicVolume: "kanban:music-volume",
+		/** Voice room audio preferences (devices, sensitivity, the other person's level, cues). */
+		voiceAudio: "kanban:voice-audio:v1",
+		/** Whether the player is muted in this browser; muting is per-listener, not shared. */
+		musicMuted: "kanban:music-muted",
 	},
 };

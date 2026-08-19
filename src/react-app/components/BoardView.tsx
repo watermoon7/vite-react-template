@@ -7,14 +7,16 @@ import {
 	type DraggableStateSnapshot,
 	type DropResult,
 } from "@hello-pangea/dnd";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { COLUMNS, TASK_SORTS } from "../../../app.config";
 import type { Board, ColumnId, ColumnOrder, Task } from "../../shared/types";
 import { unzoomDragStyle } from "../dragScale";
 import { replaceRoute } from "../router";
+import { measureCards, slideCards, type CardRects } from "../slideCards";
 import { createTask, renameBoard, reorderTasks } from "../store";
 import { compareTasks, getTaskSort, setTaskSort, subscribeTaskSort, type TaskSort } from "../taskSort";
 import { useDropStart } from "../useDropStart";
+import { useEditorAppears } from "../useEditorAppears";
 import { EditableTitle } from "./EditableTitle";
 import { Segmented } from "./Segmented";
 import { TaskCard } from "./TaskCard";
@@ -57,6 +59,7 @@ function DraggableCard({ task, selected, provided, snapshot, onSelect, onDropSta
 			{...provided.draggableProps}
 			{...provided.dragHandleProps}
 			style={unzoomDragStyle(provided.draggableProps.style)}
+			data-task-id={task.id}
 			className={
 				"card" +
 				(task.priority ? ` card-prio-${task.priority}` : "") +
@@ -76,6 +79,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 	const byColumn = useMemo(() => groupByColumn(tasks, sort), [tasks, sort]);
 	// If the selected task was deleted (possibly by the other user) the editor closes.
 	const selected = tasks.find((t) => t.id === selectedId) ?? null;
+	const editorAppears = useEditorAppears(selected !== null);
 
 	/** Opens or closes a task. Selection is not navigation, so it replaces the entry. */
 	function select(taskId: string | null): void {
@@ -104,6 +108,18 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 	const [dropping, setDropping] = useState(false);
 	const onDropStart = useCallback(() => setDropping(true), []);
 
+	// Where the cards were the moment a drop was decided, kept until the render that acts on
+	// it so they can be animated from there — see slideCards.ts.
+	const columnsRef = useRef<HTMLDivElement>(null);
+	const droppedFrom = useRef<CardRects | null>(null);
+
+	useLayoutEffect(() => {
+		const before = droppedFrom.current;
+		if (!before) return;
+		droppedFrom.current = null;
+		slideCards(columnsRef.current, before);
+	}, [byColumn]);
+
 	function onDragEnd({ source, destination, draggableId }: DropResult): void {
 		setDropping(false);
 		if (!destination) return;
@@ -115,6 +131,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 		fromIds.splice(source.index, 1);
 		toIds.splice(destination.index, 0, draggableId);
 		const columns: ColumnOrder = from === to ? { [from]: fromIds } : { [from]: fromIds, [to]: toIds };
+		droppedFrom.current = measureCards(columnsRef.current);
 		void reorderTasks(board.id, columns);
 	}
 
@@ -139,7 +156,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 
 			<div className="board-body">
 				<DragDropContext onDragStart={() => setDropping(false)} onDragEnd={onDragEnd}>
-					<div className="columns">
+					<div className="columns" ref={columnsRef}>
 						{COLUMNS.map((col) => (
 							<section className={`column column-${col.id}`} key={col.id}>
 								<header className="column-header">
@@ -181,6 +198,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 						key={selected.id}
 						task={selected}
 						autoFocus={selected.id === newTaskId}
+						appears={editorAppears}
 						onClose={() => select(null)}
 					/>
 				)}

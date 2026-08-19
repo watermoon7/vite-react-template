@@ -15,7 +15,7 @@ import { formatBytes, formatDuration, userName } from "../format";
 import { resumeListening, setVolume, sharedPositionMs, songDurationMs, useMusic } from "../music";
 import { deleteSong, renameSong, reorderSongs, seekPlayback, sendPlayback, uploadSong } from "../store";
 import { ConfirmButton } from "./Confirm";
-import { GripIcon, PauseIcon, PlayIcon, PlusIcon, SkipIcon } from "./icons";
+import { GripIcon, PauseIcon, PencilIcon, PlayIcon, PlusIcon, SkipIcon } from "./icons";
 
 interface Props {
 	songs: Song[];
@@ -245,7 +245,7 @@ interface RowProps {
 	onFinishRename: (title: string | null) => void;
 }
 
-/** One playlist row: a grip, the title (click to play, ✎ to rename) and a delete button. */
+/** One playlist row: a grip, the title (click to play, pencil to rename) and a delete button. */
 function SongRow({ song, index, current, playing, renaming, onStartRename, onFinishRename }: RowProps) {
 	const durationMs = songDurationMs(song);
 	return (
@@ -289,7 +289,7 @@ function SongRow({ song, index, current, playing, renaming, onStartRename, onFin
 								{durationMs === null ? "" : ` · ${formatDuration(durationMs)}`}
 							</span>
 							<button className="nav-action" title="Rename song" aria-label={`Rename ${song.title}`} onClick={onStartRename}>
-								✎
+								<PencilIcon />
 							</button>
 							<ConfirmButton
 								className="nav-action nav-delete"

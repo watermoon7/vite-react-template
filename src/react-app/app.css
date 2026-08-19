@@ -1002,6 +1002,12 @@ input[type="date"].input {
 	font-size: 13px;
 	line-height: 1;
 }
+.card-subtasks {
+	font-variant-numeric: tabular-nums;
+}
+.card-subtasks.all-done {
+	color: var(--ok);
+}
 
 /* ---------- Task editor ---------- */
 .editor {
@@ -1012,6 +1018,17 @@ input[type="date"].input {
 	border-left: 1px solid var(--border);
 	background: var(--bg);
 	min-height: 0;
+}
+/* The panel comes in from the edge it is docked to. Only when it appears: handed another
+   task it keeps still and swaps its contents — see useEditorAppears in TaskEditor.tsx. */
+@keyframes editor-appear {
+	from {
+		opacity: 0;
+		transform: translateX(24px);
+	}
+}
+.editor.appearing {
+	animation: editor-appear 160ms ease-out;
 }
 .editor-header {
 	display: flex;
@@ -1054,6 +1071,50 @@ input[type="date"].input {
 	padding: 10px 16px;
 	border-top: 1px solid var(--border);
 	flex-shrink: 0;
+}
+
+/* ---------- Subtasks (a task's checklist) ---------- */
+.checklist {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	align-items: flex-start;
+}
+.checklist-items {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	width: 100%;
+}
+.checklist-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.checklist-tick {
+	flex-shrink: 0;
+	width: 15px;
+	height: 15px;
+	margin: 0;
+	accent-color: var(--accent);
+	cursor: pointer;
+}
+.checklist-text {
+	flex: 1;
+	min-width: 0;
+}
+/* A subtask that is done steps back, so the list reads as what is left to do. */
+.checklist-item.done .checklist-text {
+	color: var(--text-muted);
+	text-decoration: line-through;
+}
+.checklist-add {
+	gap: 6px;
+	padding-left: 0;
+}
+.checklist-add:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 /* ---------- Pages (channels, settings) ---------- */
@@ -1218,6 +1279,55 @@ input[type="date"].input {
 	background: var(--accent-soft);
 	color: var(--accent);
 	border-radius: var(--radius);
+}
+
+/* ---------- Audio settings ---------- */
+/* Device pickers are wide enough for a full device name, which is often a model number
+   followed by the port it is plugged into, without stretching across the whole page. */
+.select {
+	width: auto;
+	min-width: 260px;
+	max-width: 100%;
+	padding: 6px 8px;
+}
+/* Fixed width so the slider and the meter below it read as one column. */
+.audio-range {
+	width: 220px;
+	flex: 0 0 auto;
+	accent-color: var(--accent);
+}
+.audio-value {
+	font-variant-numeric: tabular-nums;
+	min-width: 42px;
+}
+/* The input meter: a level, not a control, so it is drawn rather than styled as an input.
+   It stays visible while switched off (reading empty) so its place in the panel is stable. */
+.meter {
+	width: 220px;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	overflow: hidden;
+	opacity: 0.55;
+}
+.meter.on {
+	opacity: 1;
+}
+.meter-fill {
+	height: 100%;
+	background: var(--accent);
+	transition: width 80ms linear;
+}
+/* A checkbox and its wording as one target. */
+.check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+.check input {
+	accent-color: var(--accent);
 }
 .table-wrap {
 	width: 100%;
@@ -1488,6 +1598,29 @@ input[type="date"].input {
 	padding: 8px 8px 0;
 	line-height: 1.5;
 }
+/* How loud the other person is in this browser. It sits with the in-room controls because
+   that is where it is wanted, but it changes nothing for them: this is a listener's setting. */
+.voice-volume {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 9px 8px 0;
+}
+.voice-volume-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.voice-volume-value {
+	font-variant-numeric: tabular-nums;
+	min-width: 32px;
+	text-align: right;
+}
+.voice-range {
+	flex: 1;
+	min-width: 0;
+	accent-color: var(--accent);
+}
 .voice-error {
 	display: flex;
 	align-items: flex-start;
@@ -1514,6 +1647,21 @@ input[type="date"].input {
 .nav-item.active .nav-subtitle {
 	color: inherit;
 	opacity: 0.75;
+}
+/* The mute toggle stays visible, unlike the hover-only row actions: a player that has been
+   silenced has to say so without being hovered, or the silence looks like a fault. */
+.nav-mute {
+	width: 24px;
+	height: 24px;
+	flex-shrink: 0;
+	margin-right: 4px;
+}
+.nav-mute.on {
+	color: var(--danger);
+}
+.nav-mute.on:hover {
+	background: var(--danger-soft);
+	color: var(--danger);
 }
 
 /* ---------- Music ---------- */

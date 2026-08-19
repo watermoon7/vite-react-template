@@ -6,7 +6,7 @@
  * so seeing the other person's dot lit is the whole invitation.
  */
 import { USERS } from "../../../app.config";
-import type { UserId, VoiceMember } from "../../shared/types";
+import { otherUser, type UserId, type VoiceMember } from "../../shared/types";
 import { userName } from "../format";
 import { navigate, type Route } from "../router";
 import {
@@ -19,6 +19,7 @@ import {
 	useVoice,
 	type VoiceStatus,
 } from "../voice";
+import { setVoiceAudio, useVoiceAudio } from "../voiceAudio";
 import { LeaveIcon, MicIcon, ScreenIcon } from "./icons";
 
 interface Props {
@@ -66,6 +67,8 @@ function RoomMember({ id, member, isMe }: { id: UserId; member: VoiceMember | un
 
 export function VoiceRoom({ route, user }: Props) {
 	const voice = useVoice();
+	const audio = useVoiceAudio();
+	const other = otherUser(user);
 	const byUser = new Map(voice.room.map((member) => [member.user, member]));
 	const peer = voice.room.find((member) => member.user !== user);
 	const watching = route.kind === "screen";
@@ -119,6 +122,26 @@ export function VoiceRoom({ route, user }: Props) {
 							<LeaveIcon size={16} />
 						</button>
 					</div>
+					{other && (
+						<div className="voice-volume">
+							<label className="muted small" htmlFor="voice-peer-volume">
+								{userName(other)}’s volume
+							</label>
+							<div className="voice-volume-row">
+								<input
+									id="voice-peer-volume"
+									className="voice-range"
+									type="range"
+									min={0}
+									max={1}
+									step={0.01}
+									value={audio.peerVolume}
+									onChange={(e) => setVoiceAudio({ peerVolume: Number(e.target.value) })}
+								/>
+								<span className="voice-volume-value muted small">{Math.round(audio.peerVolume * 100)}%</span>
+							</div>
+						</div>
+					)}
 				</>
 			)}
 

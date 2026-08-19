@@ -194,8 +194,8 @@ export function SearchIcon({ size = 14 }: IconProps) {
 	);
 }
 
-/** A tick, for confirming an inline edit. */
-export function CheckIcon({ size = 14 }: IconProps) {
+/** A speaker. `off` crosses out the sound waves for the muted state. */
+export function SpeakerIcon({ size = 14, off = false }: IconProps & { off?: boolean }) {
 	assertSize(size);
 	return (
 		<svg
@@ -205,12 +205,17 @@ export function CheckIcon({ size = 14 }: IconProps) {
 			viewBox="0 0 24 24"
 			fill="none"
 			stroke="currentColor"
-			strokeWidth="2.25"
+			strokeWidth="2"
 			strokeLinecap="round"
 			strokeLinejoin="round"
 			aria-hidden="true"
 		>
-			<path d="M4 12.5l5 5L20 6.5" />
+			<path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z" />
+			{off ? (
+				<path d="M16.5 9.5l5 5M21.5 9.5l-5 5" />
+			) : (
+				<path d="M16 9.25a4.5 4.5 0 0 1 0 5.5M19 6.5a8.5 8.5 0 0 1 0 11" />
+			)}
 		</svg>
 	);
 }

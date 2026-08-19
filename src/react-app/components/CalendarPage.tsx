@@ -29,6 +29,7 @@ import { todayIso } from "../format";
 import { replaceRoute } from "../router";
 import { rescheduleTask } from "../store";
 import { useDropStart } from "../useDropStart";
+import { useEditorAppears } from "../useEditorAppears";
 import { TaskEditor } from "./TaskEditor";
 
 interface Props {
@@ -144,6 +145,7 @@ export function CalendarPage({ boards, tasks, selectedId }: Props) {
 	// If the selected task was deleted (possibly by the other user) the editor closes.
 	const selected = tasks.find((t) => t.id === selectedId) ?? null;
 	const selectedBoard = selected ? boards.find((b) => b.id === selected.boardId) : undefined;
+	const editorAppears = useEditorAppears(selected !== null);
 	const dueThisMonth = days.reduce((n, d) => n + (d.inMonth ? (byDate.get(d.iso)?.length ?? 0) : 0), 0);
 
 	/** Opens or closes a task. Selection is not navigation, so it replaces the entry. */
@@ -218,7 +220,14 @@ export function CalendarPage({ boards, tasks, selectedId }: Props) {
 				</div>
 
 				{selected && (
-					<TaskEditor key={selected.id} task={selected} board={selectedBoard} autoFocus={false} onClose={() => select(null)} />
+					<TaskEditor
+						key={selected.id}
+						task={selected}
+						board={selectedBoard}
+						autoFocus={false}
+						appears={editorAppears}
+						onClose={() => select(null)}
+					/>
 				)}
 			</div>
 		</>
