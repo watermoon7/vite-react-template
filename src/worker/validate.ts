@@ -194,6 +194,17 @@ export function parseMessageInput(body: unknown): { text: string; image: StoredF
 	return { text, image };
 }
 
+/**
+ * Parses {text} for editing a message. Only the text is editable, so it must be non-empty:
+ * a message emptied of everything is a deletion, which has its own endpoint.
+ */
+export function parseMessageEdit(body: unknown): { text: string } {
+	const rec = asRecord(body, "body");
+	const text = asString(rec.text, "text", LIMITS.messageTextMaxLength).trim();
+	if (text.length === 0) throw new ValidationError("message text is required");
+	return { text };
+}
+
 // ---------- Music ----------
 
 /**

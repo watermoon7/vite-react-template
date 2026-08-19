@@ -1,6 +1,6 @@
 /**
- * Minimal hash router: #/b/<boardId>[/t/<taskId>], #/c/<channelId>, #/calendar[/t/<taskId>],
- * #/music, #/screen, #/settings.
+ * Minimal hash router: #/b/<boardId>[/t/<taskId>], #/c/<channelId>[/m/<messageId>],
+ * #/calendar[/t/<taskId>], #/music, #/screen, #/settings.
  */
 import { useSyncExternalStore } from "react";
 import { CLIENT } from "../../app.config";
@@ -9,7 +9,8 @@ export type Route =
 	| { kind: "home" }
 	/** `taskId` is the task whose editor is open, so a task can be linked to directly. */
 	| { kind: "board"; boardId: string; taskId?: string }
-	| { kind: "channel"; channelId: string }
+	/** `messageId` is a message to jump to and highlight, as chat search results link to. */
+	| { kind: "channel"; channelId: string; messageId?: string }
 	/** Month calendar of due dates across every board; `taskId` is the task whose editor is open. */
 	| { kind: "calendar"; taskId?: string }
 	/** The shared playlist and player. */
@@ -25,7 +26,11 @@ export function parseHash(hash: string): Route {
 		if (parts[2] === "t" && parts[3]) return { kind: "board", boardId, taskId: decodeURIComponent(parts[3]) };
 		return { kind: "board", boardId };
 	}
-	if (parts[0] === "c" && parts[1]) return { kind: "channel", channelId: decodeURIComponent(parts[1]) };
+	if (parts[0] === "c" && parts[1]) {
+		const channelId = decodeURIComponent(parts[1]);
+		if (parts[2] === "m" && parts[3]) return { kind: "channel", channelId, messageId: decodeURIComponent(parts[3]) };
+		return { kind: "channel", channelId };
+	}
 	if (parts[0] === "calendar") {
 		if (parts[1] === "t" && parts[2]) return { kind: "calendar", taskId: decodeURIComponent(parts[2]) };
 		return { kind: "calendar" };
@@ -42,8 +47,10 @@ export function routeToHash(route: Route): string {
 			const base = `#/b/${encodeURIComponent(route.boardId)}`;
 			return route.taskId ? `${base}/t/${encodeURIComponent(route.taskId)}` : base;
 		}
-		case "channel":
-			return `#/c/${encodeURIComponent(route.channelId)}`;
+		case "channel": {
+			const base = `#/c/${encodeURIComponent(route.channelId)}`;
+			return route.messageId ? `${base}/m/${encodeURIComponent(route.messageId)}` : base;
+		}
 		case "calendar":
 			return route.taskId ? `#/calendar/t/${encodeURIComponent(route.taskId)}` : "#/calendar";
 		case "music":

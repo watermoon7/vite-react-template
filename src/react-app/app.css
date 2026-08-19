@@ -1201,24 +1201,6 @@ input[type="date"].input {
 .msg > .confirm-anchor {
 	flex-shrink: 0;
 }
-.msg-delete {
-	width: 22px;
-	height: 22px;
-	border-radius: var(--radius);
-	color: var(--text-muted);
-	font-size: 16px;
-	line-height: 1;
-	opacity: 0;
-}
-.msg:hover .msg-delete,
-.msg-delete:focus-visible,
-.msg:has(.confirm-pop) .msg-delete {
-	opacity: 1;
-}
-.msg-delete:hover {
-	background: var(--danger-soft);
-	color: var(--danger);
-}
 .chat-composer {
 	flex-shrink: 0;
 	padding: 8px 20px 12px;
@@ -2239,4 +2221,218 @@ input[type="date"].input {
 	.calendar-body {
 		position: relative;
 	}
+}
+
+/* ---------- Chat: mentions, typing, editing, and the two panel searches ---------- */
+
+/* Each panel heading carries its own search toggle beside its "new…" button. */
+.sidebar-heading-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+.sidebar-heading .icon-btn.active {
+	background: var(--accent-soft);
+	color: var(--accent);
+}
+/* The box belongs to the section above it, so it sits under the heading rather than apart. */
+.sidebar-section .sidebar-search {
+	padding: 2px 8px 4px;
+}
+
+/* A chat result is a mini message: who and when, then the matching text. */
+.nav-link.search-result.chat-result {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.chat-result-head {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+}
+.chat-result-author {
+	font-weight: 600;
+	font-size: 12.5px;
+}
+.chat-result-text {
+	color: var(--text-muted);
+	font-size: 12.5px;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+/* Names what a result is when the text alone does not say it (an image with no caption). */
+.chat-result-tag {
+	align-self: flex-start;
+	margin-top: 2px;
+	padding: 0 5px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	color: var(--text-muted);
+	font-size: 11px;
+	line-height: 16px;
+}
+
+/* An @mention reads as a name, not as a link: tinted, never underlined. */
+.mention {
+	padding: 0 2px;
+	border-radius: 3px;
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 500;
+}
+/* Being named yourself is the one that has to catch the eye, so it is filled rather than washed. */
+.mention-me {
+	background: var(--accent);
+	color: var(--inverse-fg);
+}
+/* …and the whole message carries a marker down its edge. */
+.msg-mentioned {
+	background: var(--accent-soft);
+	box-shadow: inset 2px 0 0 var(--accent);
+}
+.msg-mentioned:hover {
+	background: var(--accent-soft);
+}
+/* A message opened from a search result: held highlighted for CHANNELS.jumpHighlightMs, then
+   fading back rather than snapping, so the eye can follow where it landed. */
+.msg-flash {
+	background: var(--accent-soft);
+	box-shadow: inset 0 0 0 1px var(--accent);
+	transition: none;
+}
+.msg:not(.msg-flash) {
+	transition: background 400ms ease, box-shadow 400ms ease;
+}
+
+/* The row actions (edit, delete) appear on hover, on focus, and while a popover is open. */
+.msg-action {
+	width: 22px;
+	height: 22px;
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius);
+	color: var(--text-muted);
+	font-size: 16px;
+	line-height: 1;
+	opacity: 0;
+}
+.msg:hover .msg-action,
+.msg-action:focus-visible,
+.msg:has(.confirm-pop) .msg-action {
+	opacity: 1;
+}
+.msg-action:hover {
+	background: var(--hover);
+	color: var(--text);
+}
+.msg-delete:hover {
+	background: var(--danger-soft);
+	color: var(--danger);
+}
+/* "(edited)" trails the text on the same line, so it reads as a footnote to it. */
+.msg-text-row {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.msg-edited {
+	font-size: 11px;
+}
+.msg-edit {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	/* The editor replaces one line of the log, so it takes the width the log gives it. */
+	min-width: min(520px, 100%);
+}
+
+/* One line under the log, always present, so an indicator appearing never shifts the messages. */
+.chat-typing {
+	flex-shrink: 0;
+	height: 18px;
+	padding: 0 20px;
+	font-size: 11.5px;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* Three dots after a chat's name in the panel, pulsing in turn. */
+.typing-dots {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	margin-left: 6px;
+	vertical-align: middle;
+}
+.typing-dots i {
+	width: 3px;
+	height: 3px;
+	border-radius: 50%;
+	background: currentColor;
+	opacity: 0.35;
+	animation: typing-pulse 1.2s infinite ease-in-out;
+}
+.typing-dots i:nth-child(2) {
+	animation-delay: 0.2s;
+}
+.typing-dots i:nth-child(3) {
+	animation-delay: 0.4s;
+}
+@keyframes typing-pulse {
+	0%,
+	60%,
+	100% {
+		opacity: 0.25;
+	}
+	30% {
+		opacity: 1;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.typing-dots i {
+		animation: none;
+		opacity: 0.6;
+	}
+}
+
+/* The mention completions float above the composer, anchored to the input's left edge. */
+.chat-input-wrap {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+	display: flex;
+}
+.chat-input-wrap .chat-input {
+	flex: 1;
+}
+.mention-picker {
+	position: absolute;
+	bottom: calc(100% + 6px);
+	left: 0;
+	z-index: 5;
+	min-width: 160px;
+	padding: 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	background: var(--surface-1);
+	box-shadow: 0 6px 18px var(--shadow-color);
+}
+.mention-option {
+	display: flex;
+	align-items: center;
+	padding: 5px 7px;
+	border-radius: var(--radius);
+	text-align: left;
+}
+.mention-option:hover,
+.mention-option.active {
+	background: var(--hover);
 }

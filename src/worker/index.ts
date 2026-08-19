@@ -14,6 +14,7 @@ import {
 	parseBoardInput,
 	parseChannelInput,
 	parseColumnOrder,
+	parseMessageEdit,
 	parseMessageInput,
 	parsePlaybackCommand,
 	parseSongOrder,
@@ -167,6 +168,11 @@ app.delete("/api/channels/:id", async (c) =>
 app.post("/api/channels/:id/messages", async (c) => {
 	const { text, image } = parseMessageInput(await jsonBody(c));
 	return c.json(await store(c.env).postMessage(c.get("user"), c.req.param("id"), text, image), 201);
+});
+
+app.patch("/api/messages/:id", async (c) => {
+	const { text } = parseMessageEdit(await jsonBody(c));
+	return c.json(await store(c.env).editMessage(c.get("user"), c.req.param("id"), text));
 });
 
 app.delete("/api/messages/:id", async (c) =>
