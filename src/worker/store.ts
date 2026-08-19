@@ -17,6 +17,7 @@ import {
 	type BackupData,
 	type Board,
 	type Channel,
+	type ChecklistItem,
 	type ClientMessage,
 	type ColumnOrder,
 	type Message,
@@ -51,8 +52,8 @@ CREATE TABLE IF NOT EXISTS boards (
 CREATE TABLE IF NOT EXISTS tasks (
 	id TEXT PRIMARY KEY, board_id TEXT NOT NULL, status TEXT NOT NULL, position INTEGER NOT NULL,
 	description TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', priority TEXT,
-	due_date TEXT, assignee TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-	updated_by TEXT NOT NULL);
+	due_date TEXT, assignee TEXT NOT NULL, checklist TEXT NOT NULL DEFAULT '[]',
+	created_at TEXT NOT NULL, updated_at TEXT NOT NULL, updated_by TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS tasks_board_idx ON tasks (board_id);
 CREATE TABLE IF NOT EXISTS channels (
 	id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, created_at TEXT NOT NULL);
@@ -86,6 +87,8 @@ type TaskRow = {
 	priority: Task["priority"];
 	due_date: string | null;
 	assignee: Task["assignee"];
+	/** The checklist as stored: a JSON array of {id, text, done}. */
+	checklist: string;
 	created_at: string;
 	updated_at: string;
 	updated_by: UserId;
@@ -163,6 +166,29 @@ function rowToMessage(r: MessageRow): Message {
 	};
 }
 
+/**
+ * Reads a stored checklist. Anything that is not the JSON array this build writes counts as
+ * an empty list: a task with an unreadable checklist still has to open.
+ */
+function parseStoredChecklist(raw: string): ChecklistItem[] {
+	if (!raw) return [];
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return [];
+	}
+	if (!Array.isArray(parsed)) return [];
+	return parsed.filter(
+		(item): item is ChecklistItem =>
+			typeof item === "object" &&
+			item !== null &&
+			typeof (item as ChecklistItem).id === "string" &&
+			typeof (item as ChecklistItem).text === "string" &&
+			typeof (item as ChecklistItem).done === "boolean",
+	);
+}
+
 function rowToTask(r: TaskRow): Task {
 	return {
 		id: r.id,
@@ -174,11 +200,21 @@ function rowToTask(r: TaskRow): Task {
 		priority: r.priority,
 		dueDate: r.due_date,
 		assignee: r.assignee,
+		checklist: parseStoredChecklist(r.checklist),
 		createdAt: r.created_at,
 		updatedAt: r.updated_at,
 		updatedBy: r.updated_by,
 	};
 }
+
+/**
+ * Columns added to an existing database by a later build. SQLite has no
+ * "ADD COLUMN IF NOT EXISTS", so each is added only when the table is missing it — which a
+ * database created from SCHEMA above never is.
+ */
+const ADDED_COLUMNS: [table: string, column: string, definition: string][] = [
+	["tasks", "checklist", "TEXT NOT NULL DEFAULT '[]'"],
+];
 
 const FIRST_COLUMN = COLUMNS[0].id;
 
@@ -316,9 +352,22 @@ export class KanbanStore extends DurableObject<Env> {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		this.sql = ctx.storage.sql;
-		ctx.blockConcurrencyWhile(async () => this.sql.exec(SCHEMA));
+		ctx.blockConcurrencyWhile(async () => {
+			this.sql.exec(SCHEMA);
+			this.addMissingColumns();
+		});
 		// Answer keep-alive pings without waking the object.
 		ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+	}
+
+	/** Brings a database created by an earlier build up to the current schema. */
+	private addMissingColumns(): void {
+		for (const [table, column, definition] of ADDED_COLUMNS) {
+			const columns = this.sql.exec<{ name: string }>(`PRAGMA table_info(${table})`).toArray();
+			if (columns.length === 0) throw new Error(`cannot migrate unknown table: ${table}`);
+			if (columns.some((c) => c.name === column)) continue;
+			this.sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+		}
 	}
 
 	// ---------- WebSocket (fetch is only used for the upgrade) ----------
@@ -586,8 +635,8 @@ export class KanbanStore extends DurableObject<Env> {
 				)
 				.one().p;
 			this.sql.exec(
-				`INSERT INTO tasks (id, board_id, status, position, description, notes, priority, due_date, assignee, created_at, updated_at, updated_by)
-				 VALUES (?, ?, ?, ?, '', '', NULL, NULL, ?, ?, ?, ?)`,
+				`INSERT INTO tasks (id, board_id, status, position, description, notes, priority, due_date, assignee, checklist, created_at, updated_at, updated_by)
+				 VALUES (?, ?, ?, ?, '', '', NULL, NULL, ?, '[]', ?, ?, ?)`,
 				id, boardId, FIRST_COLUMN, top, DEFAULT_ASSIGNEE, now, now, user,
 			);
 		});
@@ -602,12 +651,14 @@ export class KanbanStore extends DurableObject<Env> {
 			priority: "priority",
 			dueDate: "due_date",
 			assignee: "assignee",
+			checklist: "checklist",
 		};
 		const sets: string[] = [];
 		const values: SqlStorageValue[] = [];
 		for (const key of Object.keys(patch) as (keyof TaskPatch)[]) {
 			sets.push(`${columnFor[key]} = ?`);
-			values.push(patch[key] ?? null);
+			// The checklist is a list; it is the one field whose column holds JSON.
+			values.push(key === "checklist" ? JSON.stringify(patch.checklist ?? []) : (patch[key] ?? null));
 		}
 		if (sets.length === 0) throw new Error("empty patch");
 		return this.commit(user, () => {
@@ -732,10 +783,10 @@ export class KanbanStore extends DurableObject<Env> {
 			}
 			for (const t of data.tasks) {
 				this.sql.exec(
-					`INSERT OR IGNORE INTO tasks (id, board_id, status, position, description, notes, priority, due_date, assignee, created_at, updated_at, updated_by)
-					 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM boards WHERE id = ?)`,
+					`INSERT OR IGNORE INTO tasks (id, board_id, status, position, description, notes, priority, due_date, assignee, checklist, created_at, updated_at, updated_by)
+					 SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM boards WHERE id = ?)`,
 					t.id, t.boardId, t.status, t.position, t.description, t.notes, t.priority, t.dueDate, t.assignee,
-					t.createdAt, t.updatedAt, t.updatedBy, t.boardId,
+					JSON.stringify(t.checklist), t.createdAt, t.updatedAt, t.updatedBy, t.boardId,
 				);
 			}
 			// rowsWritten also counts index rows, so count table rows before/after instead.

@@ -92,6 +92,10 @@ export const LIMITS = {
 	messageTextMaxLength: 4_000,
 	restoreMaxItems: 5_000,
 	playlistMaxSongs: 1_000,
+	/** Subtasks (the checklist inside a task): how many a task may hold. */
+	checklistMaxItems: 100,
+	/** Longest text of one subtask. */
+	checklistItemMaxLength: 500,
 };
 
 /** Text channels: Discord-style message logs shared by both users. */
@@ -231,6 +235,12 @@ export const CALENDAR = {
 export const CLIENT = {
 	/** Delay between the last keystroke and the save request. */
 	saveDebounceMs: 500,
+	/**
+	 * How long a card takes to glide from where it was to where a reorder has just put it
+	 * (see slideCards.ts). A sorted column is what makes the two differ: a card dropped in
+	 * the wrong place for the sort would otherwise be redrawn in the right one instantly.
+	 */
+	cardReorderMs: 220,
 	/** WebSocket keep-alive ping interval. */
 	wsPingIntervalMs: 30_000,
 	/** Server-clock estimation over the WebSocket (keeps the two music players together). */

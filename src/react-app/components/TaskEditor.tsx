@@ -1,10 +1,11 @@
 /** Side panel for editing one task. Autosaves; local edits win until the server confirms them. */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PRIORITIES, USERS } from "../../../app.config";
-import type { Assignee, Board, Priority, Task, TaskPatch } from "../../shared/types";
+import type { Assignee, Board, ChecklistItem, Priority, Task, TaskPatch } from "../../shared/types";
 import { formatDateTime, formatRelative, userName } from "../format";
 import { routeToHash } from "../router";
 import { deleteTask, updateTask } from "../store";
+import { Checklist } from "./Checklist";
 import { ConfirmButton } from "./Confirm";
 import { Segmented } from "./Segmented";
 import { useDebouncedSave } from "../useDebouncedSave";
@@ -19,6 +20,14 @@ interface Props {
 	 * (the calendar). The header then names the board and links to the task on it.
 	 */
 	board?: Board;
+	/** True when the panel is opening rather than being handed another task (see useEditorAppears). */
+	appears: boolean;
+}
+
+/** "Subtasks", with how many of them are ticked off once there are any. */
+function subtasksLabel(checklist: ChecklistItem[]): string {
+	if (checklist.length === 0) return "Subtasks";
+	return `Subtasks ${checklist.filter((item) => item.done).length}/${checklist.length}`;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -49,9 +58,11 @@ const ASSIGNEE_OPTIONS: { value: Assignee; label: string }[] = [
 	{ value: "both", label: "Both" },
 ];
 
-export function TaskEditor({ task, autoFocus, onClose, board }: Props) {
+export function TaskEditor({ task, autoFocus, onClose, board, appears }: Props) {
 	// Local edits not yet reflected by the server; a key is dropped once the store matches it.
 	const [draft, setDraft] = useState<TaskPatch>({});
+	// Taken once: the panel keeps the animation it opened with for as long as it is mounted.
+	const [slidesIn] = useState(appears);
 	const descriptionRef = useRef<HTMLTextAreaElement>(null);
 	const { schedule, flush, status } = useDebouncedSave<TaskPatch>(
 		async (patch) => {
@@ -80,7 +91,7 @@ export function TaskEditor({ task, autoFocus, onClose, board }: Props) {
 	}
 
 	return (
-		<aside className="editor" aria-label="Task details">
+		<aside className={"editor" + (slidesIn ? " appearing" : "")} aria-label="Task details">
 			<header className="editor-header">
 				<span className="editor-title">
 					Task
@@ -145,6 +156,10 @@ export function TaskEditor({ task, autoFocus, onClose, board }: Props) {
 
 				<Field label="Who">
 					<Segmented label="Assignee" options={ASSIGNEE_OPTIONS} value={view.assignee} onChange={(v) => set("assignee", v)} />
+				</Field>
+
+				<Field label={subtasksLabel(view.checklist)}>
+					<Checklist items={view.checklist} onChange={(items) => set("checklist", items)} />
 				</Field>
 			</div>
 

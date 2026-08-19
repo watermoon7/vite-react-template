@@ -1002,6 +1002,12 @@ input[type="date"].input {
 	font-size: 13px;
 	line-height: 1;
 }
+.card-subtasks {
+	font-variant-numeric: tabular-nums;
+}
+.card-subtasks.all-done {
+	color: var(--ok);
+}
 
 /* ---------- Task editor ---------- */
 .editor {
@@ -1012,6 +1018,17 @@ input[type="date"].input {
 	border-left: 1px solid var(--border);
 	background: var(--bg);
 	min-height: 0;
+}
+/* The panel comes in from the edge it is docked to. Only when it appears: handed another
+   task it keeps still and swaps its contents — see useEditorAppears in TaskEditor.tsx. */
+@keyframes editor-appear {
+	from {
+		opacity: 0;
+		transform: translateX(24px);
+	}
+}
+.editor.appearing {
+	animation: editor-appear 160ms ease-out;
 }
 .editor-header {
 	display: flex;
@@ -1054,6 +1071,50 @@ input[type="date"].input {
 	padding: 10px 16px;
 	border-top: 1px solid var(--border);
 	flex-shrink: 0;
+}
+
+/* ---------- Subtasks (a task's checklist) ---------- */
+.checklist {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	align-items: flex-start;
+}
+.checklist-items {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	width: 100%;
+}
+.checklist-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.checklist-tick {
+	flex-shrink: 0;
+	width: 15px;
+	height: 15px;
+	margin: 0;
+	accent-color: var(--accent);
+	cursor: pointer;
+}
+.checklist-text {
+	flex: 1;
+	min-width: 0;
+}
+/* A subtask that is done steps back, so the list reads as what is left to do. */
+.checklist-item.done .checklist-text {
+	color: var(--text-muted);
+	text-decoration: line-through;
+}
+.checklist-add {
+	gap: 6px;
+	padding-left: 0;
+}
+.checklist-add:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
 }
 
 /* ---------- Pages (channels, settings) ---------- */

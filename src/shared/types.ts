@@ -14,6 +14,13 @@ export interface Board {
 	updatedAt: string;
 }
 
+/** One subtask in a task's checklist. Ids are made by the client that adds the item. */
+export interface ChecklistItem {
+	id: string;
+	text: string;
+	done: boolean;
+}
+
 export interface Task {
 	id: string;
 	boardId: string;
@@ -25,6 +32,8 @@ export interface Task {
 	/** ISO date (YYYY-MM-DD) or null. */
 	dueDate: string | null;
 	assignee: Assignee;
+	/** Subtasks, in display order. Empty for a task that has none. */
+	checklist: ChecklistItem[];
 	createdAt: string;
 	updatedAt: string;
 	updatedBy: UserId;
@@ -151,6 +160,8 @@ export interface TaskPatch {
 	priority?: Priority | null;
 	dueDate?: string | null;
 	assignee?: Assignee;
+	/** The whole checklist, replaced at once: subtasks are edited as one list, not row by row. */
+	checklist?: ChecklistItem[];
 }
 
 /** Ordered task ids per column for one board, as sent by the client after a drag. */

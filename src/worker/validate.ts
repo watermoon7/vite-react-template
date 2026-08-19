@@ -7,6 +7,7 @@ import {
 	isUserId,
 	type BackupData,
 	type Board,
+	type ChecklistItem,
 	type ColumnOrder,
 	type PlaybackCommand,
 	type Task,
@@ -38,6 +39,26 @@ function asId(value: unknown, what: string): string {
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Parses a task's checklist: a list of {id, text, done} in display order. Ids are made by the
+ * client, so they are checked for duplicates here — two items sharing one would toggle together.
+ */
+function parseChecklist(value: unknown): ChecklistItem[] {
+	if (!Array.isArray(value)) throw new ValidationError("checklist must be an array");
+	if (value.length > LIMITS.checklistMaxItems) {
+		throw new ValidationError(`too many subtasks (max ${LIMITS.checklistMaxItems})`);
+	}
+	const seen = new Set<string>();
+	return value.map((entry) => {
+		const rec = asRecord(entry, "subtask");
+		const id = asId(rec.id, "subtask.id");
+		if (seen.has(id)) throw new ValidationError("subtask ids must be unique");
+		seen.add(id);
+		if (typeof rec.done !== "boolean") throw new ValidationError("subtask.done must be a boolean");
+		return { id, text: asString(rec.text, "subtask.text", LIMITS.checklistItemMaxLength), done: rec.done };
+	});
+}
 
 /** Parses {name} for creating/renaming a board. */
 export function parseBoardInput(body: unknown): { name: string } {
@@ -77,6 +98,9 @@ export function parseTaskPatch(body: unknown): TaskPatch {
 			case "assignee":
 				if (!isAssignee(value)) throw new ValidationError("invalid assignee");
 				patch.assignee = value;
+				break;
+			case "checklist":
+				patch.checklist = parseChecklist(value);
 				break;
 			default:
 				throw new ValidationError(`unknown field: ${key}`);
@@ -309,6 +333,7 @@ function parseTask(value: unknown): Task {
 		priority: rec.priority,
 		dueDate: rec.dueDate,
 		assignee: rec.assignee,
+		checklist: rec.checklist === undefined ? [] : parseChecklist(rec.checklist),
 		createdAt: asString(rec.createdAt, "task.createdAt", 40),
 		updatedAt: asString(rec.updatedAt, "task.updatedAt", 40),
 		updatedBy: rec.updatedBy,
