@@ -6,6 +6,7 @@ import { navigate, routeToHash, type Route } from "../router";
 import { FILTER_HELP, searchTasks } from "../search";
 import { createBoard, createChannel, deleteBoard, deleteChannel, renameBoard, renameChannel } from "../store";
 import { ConfirmButton } from "./Confirm";
+import { TaskMeta } from "./TaskCard";
 
 interface Props {
 	route: Route;
@@ -221,19 +222,19 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 								{group.hits.map((hit) => (
 									<li key={hit.task.id} className="nav-item">
 										<a
-											className="nav-link search-result"
+											className={
+												"nav-link search-result" + (hit.task.priority ? ` search-prio-${hit.task.priority}` : "")
+											}
 											href={routeToHash({
 												kind: "board",
 												boardId: group.board.id,
 												taskId: hit.task.id,
 											})}
 										>
-											{hit.task.description.trim() || "Untitled task"}
-											{!hit.inDescription && (
-												<span className="search-in-notes" title="Matched in notes">
-													{" ≡"}
-												</span>
-											)}
+											<span className={"search-title" + (hit.task.description.trim() ? "" : " placeholder")}>
+												{hit.task.description.trim() || "Untitled task"}
+											</span>
+											<TaskMeta task={hit.task} />
 										</a>
 									</li>
 								))}

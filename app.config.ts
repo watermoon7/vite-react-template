@@ -136,7 +136,7 @@ export const CLIENT = {
 		/** Shortest trimmed query that triggers a search. */
 		minQueryLength: 1,
 		/** Most results listed at once; anything beyond this is reported as a count. */
-		maxResults: 50,
+		maxResults: 10,
 	},
 	/** localStorage keys. */
 	storageKeys: {
