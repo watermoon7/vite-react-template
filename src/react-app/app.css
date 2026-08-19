@@ -1165,16 +1165,19 @@ input[type="date"].input {
 	color: var(--border-strong);
 	cursor: default;
 }
+/* One line of text makes it exactly as tall as the buttons beside it (30px), so the row
+   lines up; it grows from there. */
 .chat-input {
 	flex: 1;
 	min-height: 30px;
 	max-height: 200px;
-	padding: 6px 9px;
+	padding: 4px 9px;
 	border: 1px solid var(--border-strong);
 	border-radius: var(--radius);
 	background: var(--bg);
 	resize: none;
-	overflow-y: auto;
+	/* The composer switches this to auto once the content is taller than max-height. */
+	overflow-y: hidden;
 	line-height: 1.4;
 }
 .chat-input:focus {
