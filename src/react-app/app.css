@@ -459,6 +459,23 @@ input[type="date"].input {
 .seg-btn:last-child {
 	border-right: 0;
 }
+/* A caption fused to the start of a segmented control: recessed and set like the other
+   captions in the app so it reads as a name for the choices, not as one of them. */
+.seg-label {
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 10px;
+	border-right: 1px solid var(--border-strong);
+	background: var(--surface-2);
+	color: var(--text-muted);
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	cursor: default;
+	-webkit-user-select: none;
+	user-select: none;
+}
 .seg-btn:hover {
 	background: var(--hover);
 	color: var(--text);
@@ -773,7 +790,6 @@ input[type="date"].input {
 .board-sort {
 	display: flex;
 	align-items: center;
-	gap: 8px;
 	margin-left: 6px;
 }
 .board-sort .seg {
