@@ -15,7 +15,11 @@ import { useSyncExternalStore } from "react";
 import { VOICE } from "../../app.config";
 import { otherUser, type IceServer, type UserId, type VoiceMember } from "../shared/types";
 import { api } from "./api";
+import { resumeAudio } from "./audioContext";
+import { acquireMicrophone, releaseMicrophone, setMicrophoneMuted } from "./microphone";
 import { sendSocket, subscribeSocket } from "./socket";
+import { peerVolumeAmplitude, subscribeVoiceAudio, voiceAudioSettings } from "./voiceAudio";
+import { playCue } from "./voiceSounds";
 
 export type VoiceStatus = "idle" | "waiting" | "connecting" | "connected" | "reconnecting" | "failed";
 
@@ -157,11 +161,27 @@ function playRemoteAudio(): void {
 		// media element for autoplay policy, devtools and the browser's own media controls.
 		remoteAudio.hidden = true;
 		document.body.append(remoteAudio);
+		applyListeningPreferences();
 	}
 	if (!remoteAudio.paused) return;
 	remoteAudio.play().catch((err: unknown) => {
 		if (err instanceof Error && err.name === "AbortError") return; // superseded by a later play()
 		reportError(err);
+	});
+}
+
+/**
+ * Applies this browser's listening preferences to the peer's audio: how loud they are here,
+ * and which device they come out of. Both are per listener, so neither is sent anywhere.
+ */
+function applyListeningPreferences(): void {
+	if (!remoteAudio) return;
+	const settings = voiceAudioSettings();
+	remoteAudio.volume = peerVolumeAmplitude(settings.peerVolume);
+	// Choosing an output device is Chrome-only; elsewhere the element follows the system default.
+	if (!("setSinkId" in remoteAudio)) return;
+	remoteAudio.setSinkId(settings.outputDeviceId ?? "").catch((err: unknown) => {
+		console.warn("Could not play the room through the chosen output device", err);
 	});
 }
 
@@ -291,8 +311,10 @@ function handleSignal(signal: Signal): void {
 export async function joinRoom(): Promise<void> {
 	if (state.joined) return;
 	setState({ error: null });
+	// The join click is the gesture the browser wants before this page may make any sound.
+	resumeAudio();
 	try {
-		micStream = await navigator.mediaDevices.getUserMedia({ audio: VOICE.micConstraints, video: false });
+		micStream = await acquireMicrophone("voice");
 	} catch (err) {
 		reportError(err instanceof Error && err.name === "NotAllowedError" ? new Error("Microphone access was denied") : err);
 		return;
@@ -312,16 +334,23 @@ export async function joinRoom(): Promise<void> {
 		return;
 	}
 	setState({ joined: true, muted: false });
+	setMicrophoneMuted(false);
 	playRemoteAudio();
+	playCue("join");
 	// The server answers a join with a room broadcast, and that is what builds the connection —
 	// only then are both tabs' join timestamps known, and they are what the peering is keyed on.
 	onRoom(state.room);
 }
 
+/**
+ * Gives up this tab's hold on the microphone. The device is only really closed once nothing
+ * else wants it, and the mute is cleared so the next join does not start silently.
+ */
 function stopMicrophone(): void {
 	if (!micStream) return;
-	for (const track of micStream.getTracks()) track.stop();
 	micStream = null;
+	setMicrophoneMuted(false);
+	releaseMicrophone("voice");
 }
 
 /** Leaves the room and releases the microphone. */
@@ -338,9 +367,10 @@ export function leaveRoom(): void {
 export function setMuted(muted: boolean): void {
 	if (typeof muted !== "boolean") throw new Error("muted must be a boolean");
 	if (!state.joined || !micStream) return;
-	for (const track of micStream.getAudioTracks()) track.enabled = !muted;
+	setMicrophoneMuted(muted);
 	sendSocket({ t: "voice-mute", muted });
 	setState({ muted });
+	playCue(muted ? "mute" : "unmute");
 }
 
 // ---------- Screen sharing ----------
@@ -376,6 +406,7 @@ export async function startScreenShare(): Promise<void> {
 	for (const track of stream.getVideoTracks()) track.addEventListener("ended", () => stopScreenShare());
 	sendSocket({ t: "voice-screen", sharing: true });
 	setState({ sharing: true });
+	playCue("screen-share");
 }
 
 /** Stops sharing and renegotiates the connection back down to audio only. */
@@ -400,6 +431,27 @@ export function stopScreenShare(): void {
 // ---------- Server events ----------
 
 /**
+ * The other person's room entry as of the last update, kept for comparing against the next one.
+ * Not read from `state.room` because a dropped socket empties that, and the reconnect would
+ * then sound like the other person leaving and coming back.
+ */
+let cuePeer: VoiceMember | null = null;
+
+/** Sounds what the other person just did, if this tab is in the room to hear it. */
+function announcePeer(after: VoiceMember | null): void {
+	const before = cuePeer;
+	cuePeer = after;
+	if (!state.joined) return;
+	if (!before || !after) {
+		if (after) playCue("peer-join");
+		else if (before) playCue("peer-leave");
+		return;
+	}
+	if (before.muted !== after.muted) playCue(after.muted ? "peer-mute" : "peer-unmute");
+	if (!before.sharing && after.sharing) playCue("screen-share");
+}
+
+/**
  * Reacts to the room the server pushed: connect to a peer who is there, drop one who is not,
  * and rebuild from scratch when either side rejoined — the old connection is then talking to
  * a tab that has already been evicted. Rebuilding drops a screen share; it has to be
@@ -407,11 +459,15 @@ export function stopScreenShare(): void {
  */
 function onRoom(room: VoiceMember[]): void {
 	setState({ room });
+	announcePeer(peerMember());
 	const key = state.joined ? currentSessionKey() : null;
 	if (pc && key !== sessionKey) teardownPeer();
 	if (key) ensurePeer(key);
 	refreshStatus();
 }
+
+// A change to the level or the output device applies to the call already in progress.
+subscribeVoiceAudio(applyListeningPreferences);
 
 subscribeSocket((event) => {
 	if (event.kind === "open") {

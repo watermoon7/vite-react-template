@@ -1237,6 +1237,53 @@ input[type="date"].input {
 	color: var(--accent);
 	border-radius: var(--radius);
 }
+
+/* ---------- Audio settings ---------- */
+/* Device pickers are wide enough for a full device name, which is often a model number
+   followed by the port it is plugged into, without stretching across the whole page. */
+.select {
+	width: auto;
+	min-width: 260px;
+	max-width: 100%;
+	padding: 6px 8px;
+}
+.audio-range {
+	width: 220px;
+	flex: 0 0 auto;
+}
+.audio-value {
+	font-variant-numeric: tabular-nums;
+	min-width: 42px;
+}
+/* The input meter: a level, not a control, so it is drawn rather than styled as an input.
+   It stays visible while switched off (reading empty) so its place in the panel is stable. */
+.meter {
+	width: 220px;
+	height: 8px;
+	border-radius: 999px;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	overflow: hidden;
+	opacity: 0.55;
+}
+.meter.on {
+	opacity: 1;
+}
+.meter-fill {
+	height: 100%;
+	background: var(--accent);
+	transition: width 80ms linear;
+}
+/* A checkbox and its wording as one target. */
+.check {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+.check input {
+	accent-color: var(--accent);
+}
 .table-wrap {
 	width: 100%;
 	overflow-x: auto;
@@ -1505,6 +1552,29 @@ input[type="date"].input {
 .voice-hint {
 	padding: 8px 8px 0;
 	line-height: 1.5;
+}
+/* How loud the other person is in this browser. It sits with the in-room controls because
+   that is where it is wanted, but it changes nothing for them: this is a listener's setting. */
+.voice-volume {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 9px 8px 0;
+}
+.voice-volume-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.voice-volume-value {
+	font-variant-numeric: tabular-nums;
+	min-width: 32px;
+	text-align: right;
+}
+.voice-range {
+	flex: 1;
+	min-width: 0;
+	accent-color: var(--accent);
 }
 .voice-error {
 	display: flex;

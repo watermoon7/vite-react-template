@@ -1,4 +1,4 @@
-/** Account (sign out) and local backups (snapshots, download, import, restore). */
+/** Account (sign out), display, voice audio, and local backups (snapshots, download, import, restore). */
 import { useRef, useState, useSyncExternalStore, type ChangeEvent } from "react";
 import { CLIENT, DISPLAY, STYLES, THEMES } from "../../../app.config";
 import type { AppState, BackupData, UserId } from "../../shared/types";
@@ -18,6 +18,7 @@ import { canDecrease, canIncrease, getScale, resetScale, stepScale, subscribeSca
 import { logout, restoreBackup } from "../store";
 import { getStyle, setStyle, subscribeStyle, type StylePreference } from "../style";
 import { getTheme, setTheme, subscribeTheme, type ThemePreference } from "../theme";
+import { AudioSettings } from "./AudioSettings";
 import { ConfirmButton, ConfirmPopover } from "./Confirm";
 import { Segmented } from "./Segmented";
 
@@ -156,6 +157,8 @@ export function SettingsPage({ user, data }: Props) {
 						<p className="muted small">“System” follows your operating system’s appearance setting.</p>
 					</div>
 				</section>
+
+				<AudioSettings />
 
 				<section className="settings-section">
 					<h2 className="section-title">Local backups</h2>

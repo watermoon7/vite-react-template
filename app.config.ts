@@ -123,6 +123,42 @@ export const VOICE = {
 	screenConstraints: { width: 1920, height: 1080, frameRate: 30 },
 	/** How long a peer connection may sit in "disconnected" before ICE is restarted, in ms. */
 	iceRestartAfterMs: 4_000,
+	/**
+	 * Microphone sensitivity: a gain applied to the captured microphone before it is sent, so
+	 * a quiet headset can be lifted and a hot desk mic pulled back. 1 is the microphone exactly
+	 * as the operating system delivers it.
+	 */
+	micGain: { min: 0, max: 3, step: 0.05, default: 1 },
+	/** The input meter drawn beside the sensitivity slider. */
+	micMeter: {
+		/** Analyser window. 1024 samples is ~21 ms at 48 kHz: enough to be steady, short enough to feel live. */
+		fftSize: 1024,
+		/** How often the meter is recomputed and published, in ms. */
+		updateIntervalMs: 80,
+		/**
+		 * Power the measured level is raised to before it is drawn. Speech sits in the bottom
+		 * tenth of a linear meter, which reads as a dead control; this lifts it into view.
+		 */
+		displayExponent: 0.5,
+	},
+	/**
+	 * The other person's voice, as heard in this browser only. `curveExponent` is the same
+	 * audio taper the music player uses — see MUSIC.volumeCurveExponent.
+	 */
+	peerVolume: { default: 1, curveExponent: 3 },
+	/** Short synthesised cues: joining, leaving, muting, screen sharing. */
+	sounds: {
+		/** Whether cues play until the user says otherwise in Settings. */
+		enabledByDefault: true,
+		/** Peak level of one tone, as a fraction of full scale. Cues sit under speech, not over it. */
+		volume: 0.22,
+		/** Length of one tone, in seconds. */
+		toneSeconds: 0.16,
+		/** Attack of a tone's envelope, in seconds; the remainder is an exponential decay. */
+		attackSeconds: 0.012,
+		/** Level of a cue about the other person, relative to a cue about your own action. */
+		peerLevelRatio: 0.7,
+	},
 };
 
 /**
@@ -230,6 +266,8 @@ export const CLIENT = {
 		chatDrafts: "kanban:chat-drafts:v1",
 		/** Player volume (0-1) in this browser; volume is per-listener, not shared. */
 		musicVolume: "kanban:music-volume",
+		/** Voice room audio preferences (devices, sensitivity, the other person's level, cues). */
+		voiceAudio: "kanban:voice-audio:v1",
 		/** Whether the player is muted in this browser; muting is per-listener, not shared. */
 		musicMuted: "kanban:music-muted",
 	},
