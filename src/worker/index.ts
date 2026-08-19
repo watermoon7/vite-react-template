@@ -7,14 +7,14 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { AUTH } from "../../app.config";
 import type { UserId } from "../shared/types";
 import { createSessionToken, verifyPassword, verifySessionToken } from "./auth";
-import { KanbanStore, NOT_FOUND } from "./store";
+import { FORBIDDEN, KanbanStore, NOT_FOUND } from "./store";
 import {
 	ValidationError,
 	parseBackupData,
 	parseBoardInput,
+	parseChannelInput,
 	parseColumnOrder,
-	parseNotesInput,
-	parseNotesScope,
+	parseMessageInput,
 	parseTaskCreate,
 	parseTaskPatch,
 } from "./validate";
@@ -53,6 +53,7 @@ async function jsonBody(c: Ctx): Promise<unknown> {
 app.onError((err, c) => {
 	if (err instanceof ValidationError) return c.json({ error: err.message }, 400);
 	if (err.message === NOT_FOUND) return c.json({ error: "not found" }, 404);
+	if (err.message === FORBIDDEN) return c.json({ error: "forbidden" }, 403);
 	console.error(err);
 	return c.json({ error: "internal error" }, 500);
 });
@@ -143,10 +144,39 @@ app.delete("/api/tasks/:id", async (c) =>
 	c.json(await store(c.env).deleteTask(c.get("user"), c.req.param("id"))),
 );
 
-app.put("/api/notes/:scope", async (c) => {
-	const scope = parseNotesScope(c.req.param("scope"));
-	const { content } = parseNotesInput(await jsonBody(c));
-	return c.json(await store(c.env).saveNotes(c.get("user"), scope, content));
+// ---------- Channels ----------
+
+app.post("/api/channels", async (c) => {
+	const { name } = parseChannelInput(await jsonBody(c));
+	return c.json(await store(c.env).createChannel(c.get("user"), name), 201);
+});
+
+app.delete("/api/channels/:id", async (c) =>
+	c.json(await store(c.env).deleteChannel(c.get("user"), c.req.param("id"))),
+);
+
+app.post("/api/channels/:id/messages", async (c) => {
+	const { text, image } = parseMessageInput(await jsonBody(c));
+	return c.json(await store(c.env).postMessage(c.get("user"), c.req.param("id"), text, image), 201);
+});
+
+app.delete("/api/messages/:id", async (c) =>
+	c.json(await store(c.env).deleteMessage(c.get("user"), c.req.param("id"))),
+);
+
+/** Serves a message image. Ids are random and content never changes, so it may be cached for good. */
+app.get("/api/files/:id", async (c) => {
+	const file = await store(c.env).getFile(c.req.param("id"));
+	if (!file) return c.json({ error: "not found" }, 404);
+	return new Response(file.bytes, {
+		headers: {
+			"Content-Type": file.mime,
+			"Content-Length": String(file.bytes.byteLength),
+			"Content-Disposition": "inline",
+			"Cache-Control": "private, max-age=31536000, immutable",
+			"X-Content-Type-Options": "nosniff",
+		},
+	});
 });
 
 app.post("/api/restore", async (c) => {

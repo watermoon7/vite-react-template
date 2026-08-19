@@ -46,6 +46,18 @@ export function formatRelative(isoTimestamp: string, now = Date.now()): string {
 	return new Date(then).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
+/** Message timestamps: "14:05" today, "Yesterday 14:05", otherwise the full local date-time. */
+export function formatMessageTime(isoTimestamp: string, now = new Date()): string {
+	const t = Date.parse(isoTimestamp);
+	if (Number.isNaN(t)) return isoTimestamp;
+	const then = new Date(t);
+	const time = then.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+	const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+	if (t >= dayStart) return time;
+	if (t >= dayStart - 24 * 60 * 60 * 1000) return `Yesterday ${time}`;
+	return formatDateTime(isoTimestamp);
+}
+
 /** Full local date-time, e.g. "18 Aug 2026, 14:05". */
 export function formatDateTime(isoTimestamp: string): string {
 	const t = Date.parse(isoTimestamp);

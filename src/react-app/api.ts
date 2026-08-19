@@ -1,13 +1,5 @@
 /** Thin typed wrappers around the /api endpoints. */
-import type {
-	AppState,
-	BackupData,
-	ColumnOrder,
-	NotesScope,
-	RestoreResult,
-	TaskPatch,
-	UserId,
-} from "../shared/types";
+import type { AppState, BackupData, ColumnOrder, RestoreResult, TaskPatch, UserId } from "../shared/types";
 
 export class ApiError extends Error {
 	constructor(
@@ -53,6 +45,16 @@ export const api = {
 	createTask: (boardId: string) => request<{ state: AppState; taskId: string }>("POST", "/api/tasks", { boardId }),
 	updateTask: (id: string, patch: TaskPatch) => request<AppState>("PATCH", `/api/tasks/${id}`, patch),
 	deleteTask: (id: string) => request<AppState>("DELETE", `/api/tasks/${id}`),
-	saveNotes: (scope: NotesScope, content: string) => request<AppState>("PUT", `/api/notes/${scope}`, { content }),
+	createChannel: (name: string) => request<{ state: AppState; channelId: string }>("POST", "/api/channels", { name }),
+	deleteChannel: (id: string) => request<AppState>("DELETE", `/api/channels/${id}`),
+	/** `image` is a base64 data URL of an accepted image type, or undefined for a text-only message. */
+	postMessage: (channelId: string, text: string, image?: string) =>
+		request<{ state: AppState; messageId: string }>("POST", `/api/channels/${channelId}/messages`, { text, image }),
+	deleteMessage: (id: string) => request<AppState>("DELETE", `/api/messages/${id}`),
 	restore: (data: BackupData) => request<{ state: AppState; result: RestoreResult }>("POST", "/api/restore", data),
 };
+
+/** URL an <img> can load a message image from (same-origin, so the session cookie is sent). */
+export function fileUrl(imageId: string): string {
+	return `/api/files/${encodeURIComponent(imageId)}`;
+}

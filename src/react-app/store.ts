@@ -1,11 +1,11 @@
 /**
- * Client state: session, live data (boards/tasks/notes) and connection status.
+ * Client state: session, live data (boards/tasks/channels/messages) and connection status.
  * A tiny external store consumed via useSyncExternalStore; mutations call the API,
  * apply the returned state, and the WebSocket keeps both users in sync.
  */
 import { useSyncExternalStore } from "react";
 import { CLIENT } from "../../app.config";
-import type { AppState, BackupData, ColumnOrder, NotesScope, RestoreResult, Task, TaskPatch, UserId } from "../shared/types";
+import type { AppState, BackupData, ColumnOrder, RestoreResult, Task, TaskPatch, UserId } from "../shared/types";
 import { api, ApiError } from "./api";
 import { recordStateTransition } from "./backups";
 
@@ -217,8 +217,22 @@ export async function reorderTasks(boardId: string, columns: ColumnOrder): Promi
 	return (await mutate(() => api.reorderTasks(boardId, columns), (s) => s)) !== null;
 }
 
-export async function saveNotes(scope: NotesScope, content: string): Promise<boolean> {
-	return (await mutate(() => api.saveNotes(scope, content), (s) => s)) !== null;
+export async function createChannel(name: string): Promise<string | null> {
+	const result = await mutate(() => api.createChannel(name), (r) => r.state);
+	return result?.channelId ?? null;
+}
+
+export async function deleteChannel(id: string): Promise<boolean> {
+	return (await mutate(() => api.deleteChannel(id), (s) => s)) !== null;
+}
+
+/** Posts a message; `image` is a base64 data URL or undefined. */
+export async function postMessage(channelId: string, text: string, image?: string): Promise<boolean> {
+	return (await mutate(() => api.postMessage(channelId, text, image), (r) => r.state)) !== null;
+}
+
+export async function deleteMessage(id: string): Promise<boolean> {
+	return (await mutate(() => api.deleteMessage(id), (s) => s)) !== null;
 }
 
 export async function restoreBackup(data: BackupData): Promise<RestoreResult | null> {

@@ -1,50 +1,85 @@
-/** Left panel: task search, board list (create/delete/switch), notes, settings, connection status. */
+/** Left panel: task search, boards and channels (create/delete/switch), settings, connection status. */
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
-import type { Board, Task, UserId } from "../../shared/types";
+import type { Board, Channel, Message, Task, UserId } from "../../shared/types";
 import { userName } from "../format";
 import { navigate, routeToHash, type Route } from "../router";
 import { searchTasks } from "../search";
-import { createBoard, deleteBoard } from "../store";
+import { createBoard, createChannel, deleteBoard, deleteChannel } from "../store";
 
 interface Props {
 	route: Route;
 	boards: Board[];
 	tasks: Task[];
+	channels: Channel[];
+	messages: Message[];
 	user: UserId;
 	live: boolean;
 }
 
-export function Sidebar({ route, boards, tasks, user, live }: Props) {
+interface NewItemInputProps {
+	placeholder: string;
+	/** Called with the trimmed, non-empty name. */
+	onSubmit: (name: string) => void;
+	/** Called on Escape or when the input is left empty. */
+	onCancel: () => void;
+}
+
+/** Inline "new board / new channel" input: Enter or blur submits, Escape cancels. */
+function NewItemInput({ placeholder, onSubmit, onCancel }: NewItemInputProps) {
+	const [value, setValue] = useState("");
+	// Enter and the resulting blur both call submit; the ref makes the second call a no-op.
+	const pending = useRef("");
+
+	function edit(next: string): void {
+		pending.current = next;
+		setValue(next);
+	}
+
+	function submit(): void {
+		const name = pending.current.trim();
+		pending.current = "";
+		if (name) onSubmit(name);
+		else onCancel();
+	}
+
+	function onKey(e: KeyboardEvent<HTMLInputElement>): void {
+		if (e.key === "Enter") submit();
+		if (e.key === "Escape") {
+			pending.current = "";
+			onCancel();
+		}
+	}
+
+	return (
+		<input
+			className="nav-input"
+			autoFocus
+			placeholder={placeholder}
+			value={value}
+			onChange={(e) => edit(e.target.value)}
+			onKeyDown={onKey}
+			onBlur={submit}
+		/>
+	);
+}
+
+export function Sidebar({ route, boards, tasks, channels, messages, user, live }: Props) {
 	const [query, setQuery] = useState("");
 	const results = useMemo(() => searchTasks(query, boards, tasks), [query, boards, tasks]);
 	const resultList = useRef<HTMLDivElement>(null);
-	const [creating, setCreating] = useState(false);
-	const [newName, setNewName] = useState("");
-	// Enter and the resulting blur both call submit; the ref makes the second call a no-op.
-	const pendingName = useRef("");
+	const [creatingBoard, setCreatingBoard] = useState(false);
+	const [creatingChannel, setCreatingChannel] = useState(false);
 
-	function editNewName(value: string): void {
-		pendingName.current = value;
-		setNewName(value);
-	}
-
-	async function submitNewBoard(): Promise<void> {
-		const name = pendingName.current.trim();
-		pendingName.current = "";
-		setCreating(false);
-		setNewName("");
-		if (!name) return;
+	async function submitNewBoard(name: string): Promise<void> {
+		setCreatingBoard(false);
 		const id = await createBoard(name);
 		if (id) navigate({ kind: "board", boardId: id });
 	}
 
-	function onNewBoardKey(e: KeyboardEvent<HTMLInputElement>): void {
-		if (e.key === "Enter") void submitNewBoard();
-		if (e.key === "Escape") {
-			pendingName.current = "";
-			setCreating(false);
-			setNewName("");
-		}
+	async function submitNewChannel(name: string): Promise<void> {
+		setCreatingChannel(false);
+		const id = await createChannel(name);
+		if (id) navigate({ kind: "channel", channelId: id });
 	}
 
 	/** The rendered result links, in visual order. */
@@ -92,8 +127,16 @@ export function Sidebar({ route, boards, tasks, user, live }: Props) {
 		await deleteBoard(board.id);
 	}
 
+	async function removeChannel(channel: Channel): Promise<void> {
+		const count = messages.filter((m) => m.channelId === channel.id).length;
+		const detail = count === 1 ? "1 message" : `${count} messages`;
+		if (!confirm(`Delete #${channel.name} and its ${detail}?\n\nMessages and images in a channel are not backed up.`)) return;
+		if (route.kind === "channel" && route.channelId === channel.id) navigate({ kind: "home" });
+		await deleteChannel(channel.id);
+	}
+
 	const isBoard = (id: string) => route.kind === "board" && route.boardId === id;
-	const isNotes = (scope: string) => route.kind === "notes" && route.scope === scope;
+	const isChannel = (id: string) => route.kind === "channel" && route.channelId === id;
 
 	return (
 		<nav className="sidebar">
@@ -160,63 +203,91 @@ export function Sidebar({ route, boards, tasks, user, live }: Props) {
 				</div>
 			) : (
 				<>
-					<div className="sidebar-heading">
-						<span>Boards</span>
-						<button className="icon-btn" title="New board" aria-label="New board" onClick={() => setCreating(true)}>
-							+
-						</button>
-					</div>
-					<ul className="nav-list">
-						{boards.map((b) => (
-							<li key={b.id} className={"nav-item" + (isBoard(b.id) ? " active" : "")}>
-								<a href={routeToHash({ kind: "board", boardId: b.id })} className="nav-link" title={b.name}>
-									{b.name}
-								</a>
-								<button
-									className="nav-delete"
-									title="Delete board"
-									aria-label={`Delete board ${b.name}`}
-									onClick={() => void removeBoard(b)}
-								>
-									×
-								</button>
-							</li>
-						))}
-						{creating && (
-							<li className="nav-item">
-								<input
-									className="nav-input"
-									autoFocus
-									placeholder="Board name"
-									value={newName}
-									onChange={(e) => editNewName(e.target.value)}
-									onKeyDown={onNewBoardKey}
-									onBlur={() => void submitNewBoard()}
-								/>
-							</li>
-						)}
-						{boards.length === 0 && !creating && <li className="nav-empty">No boards yet</li>}
-					</ul>
+					<section className="sidebar-section" aria-label="Boards">
+						<div className="sidebar-heading">
+							<span>Boards</span>
+							<button className="icon-btn" title="New board" aria-label="New board" onClick={() => setCreatingBoard(true)}>
+								+
+							</button>
+						</div>
+						<ul className="nav-list">
+							{boards.map((b) => (
+								<li key={b.id} className={"nav-item" + (isBoard(b.id) ? " active" : "")}>
+									<a href={routeToHash({ kind: "board", boardId: b.id })} className="nav-link" title={b.name}>
+										{b.name}
+									</a>
+									<button
+										className="nav-delete"
+										title="Delete board"
+										aria-label={`Delete board ${b.name}`}
+										onClick={() => void removeBoard(b)}
+									>
+										×
+									</button>
+								</li>
+							))}
+							{creatingBoard && (
+								<li className="nav-item">
+									<NewItemInput
+										placeholder="Board name"
+										onSubmit={(name) => void submitNewBoard(name)}
+										onCancel={() => setCreatingBoard(false)}
+									/>
+								</li>
+							)}
+							{boards.length === 0 && !creatingBoard && <li className="nav-empty">No boards yet</li>}
+						</ul>
+					</section>
+
+					<section className="sidebar-section" aria-label="Channels">
+						<div className="sidebar-heading">
+							<span>Channels</span>
+							<button
+								className="icon-btn"
+								title="New channel"
+								aria-label="New channel"
+								onClick={() => setCreatingChannel(true)}
+							>
+								+
+							</button>
+						</div>
+						<ul className="nav-list">
+							{channels.map((c) => (
+								<li key={c.id} className={"nav-item" + (isChannel(c.id) ? " active" : "")}>
+									<a
+										href={routeToHash({ kind: "channel", channelId: c.id })}
+										className="nav-link nav-channel"
+										title={`#${c.name}`}
+									>
+										<span className="nav-hash">#</span>
+										{c.name}
+									</a>
+									<button
+										className="nav-delete"
+										title="Delete channel"
+										aria-label={`Delete channel ${c.name}`}
+										onClick={() => void removeChannel(c)}
+									>
+										×
+									</button>
+								</li>
+							))}
+							{creatingChannel && (
+								<li className="nav-item">
+									<NewItemInput
+										placeholder="Channel name"
+										onSubmit={(name) => void submitNewChannel(name)}
+										onCancel={() => setCreatingChannel(false)}
+									/>
+								</li>
+							)}
+							{channels.length === 0 && !creatingChannel && <li className="nav-empty">No channels yet</li>}
+						</ul>
+					</section>
 				</>
 			)}
 
-			<div className="sidebar-heading">
-				<span>Notes</span>
-			</div>
-			<ul className="nav-list">
-				<li className={"nav-item" + (isNotes("shared") ? " active" : "")}>
-					<a href={routeToHash({ kind: "notes", scope: "shared" })} className="nav-link">
-						Shared
-					</a>
-				</li>
-				<li className={"nav-item" + (isNotes("personal") ? " active" : "")}>
-					<a href={routeToHash({ kind: "notes", scope: "personal" })} className="nav-link">
-						Personal
-					</a>
-				</li>
-			</ul>
-
-			<div className="sidebar-footer">
+			<div className="sidebar-footer sidebar-section">
 				<ul className="nav-list">
 					<li className={"nav-item" + (route.kind === "settings" ? " active" : "")}>
 						<a href={routeToHash({ kind: "settings" })} className="nav-link">

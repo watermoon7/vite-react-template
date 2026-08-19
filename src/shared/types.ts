@@ -30,16 +30,34 @@ export interface Task {
 	updatedBy: UserId;
 }
 
-/** Full application state as seen by one user (personal notes are per user). */
+/** A text channel: a shared, chronological message log. */
+export interface Channel {
+	id: string;
+	name: string;
+	position: number;
+	createdAt: string;
+}
+
+/** One post in a channel. `imageId` names an image served at /api/files/<imageId>. */
+export interface Message {
+	id: string;
+	channelId: string;
+	author: UserId;
+	text: string;
+	imageId: string | null;
+	createdAt: string;
+}
+
+/** Full application state; identical for both users. */
 export interface AppState {
 	/** Monotonic counter bumped on every mutation; clients ignore stale states. */
 	version: number;
 	boards: Board[];
 	tasks: Task[];
-	notes: { shared: string; personal: string };
+	channels: Channel[];
+	/** All messages of all channels, oldest first. */
+	messages: Message[];
 }
-
-export type NotesScope = "shared" | "personal";
 
 /** Fields of a task that clients may edit. */
 export interface TaskPatch {
