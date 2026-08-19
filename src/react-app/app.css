@@ -28,6 +28,9 @@
 	--prio-low-soft: #eaeef3;
 	--prio-medium-soft: #fdf0d9;
 	--prio-high-soft: #fde8e6;
+	/* Column headers (In progress / Completed) and cards in the last column. */
+	--progress-soft: #d3e5fb;
+	--done-soft: #d7f3e2;
 	/* Solid controls (primary button, selected segment) invert the surface. Reusing
 	   --text as a background would make them white-on-white in the dark theme. */
 	--inverse-bg: #171717;
@@ -69,6 +72,8 @@
 		--prio-low-soft: #23272e;
 		--prio-medium-soft: #302818;
 		--prio-high-soft: #35211f;
+		--progress-soft: #1c2b44;
+		--done-soft: #1a3329;
 		--inverse-bg: #ececec;
 		--inverse-bg-hover: #ffffff;
 		--inverse-fg: #121212;
@@ -100,6 +105,8 @@
 	--prio-low-soft: #23272e;
 	--prio-medium-soft: #302818;
 	--prio-high-soft: #35211f;
+	--progress-soft: #1c2b44;
+	--done-soft: #1a3329;
 	--inverse-bg: #ececec;
 	--inverse-bg-hover: #ffffff;
 	--inverse-fg: #121212;
@@ -155,6 +162,8 @@
 	--prio-low-soft: rgba(100, 116, 139, 0.14);
 	--prio-medium-soft: rgba(217, 119, 6, 0.16);
 	--prio-high-soft: rgba(220, 38, 38, 0.13);
+	--progress-soft: rgba(59, 130, 246, 0.2);
+	--done-soft: rgba(16, 185, 129, 0.2);
 	--inverse-bg: #4f46e5;
 	--inverse-bg-hover: #4338ca;
 	--inverse-fg: #ffffff;
@@ -206,6 +215,8 @@
 		--prio-low-soft: rgba(148, 163, 184, 0.14);
 		--prio-medium-soft: rgba(251, 191, 36, 0.14);
 		--prio-high-soft: rgba(248, 113, 113, 0.17);
+		--progress-soft: rgba(96, 165, 250, 0.2);
+		--done-soft: rgba(52, 211, 153, 0.18);
 		--inverse-bg: #6366f1;
 		--inverse-bg-hover: #4f46e5;
 		--inverse-fg: #ffffff;
@@ -250,6 +261,8 @@
 	--prio-low-soft: rgba(148, 163, 184, 0.14);
 	--prio-medium-soft: rgba(251, 191, 36, 0.14);
 	--prio-high-soft: rgba(248, 113, 113, 0.17);
+	--progress-soft: rgba(96, 165, 250, 0.2);
+	--done-soft: rgba(52, 211, 153, 0.18);
 	--inverse-bg: #6366f1;
 	--inverse-bg-hover: #4f46e5;
 	--inverse-fg: #ffffff;
@@ -742,9 +755,14 @@ input[type="date"].input {
 .search-result.search-prio-high {
 	background: var(--prio-high-soft);
 }
+.search-result.search-done {
+	background: var(--done-soft);
+}
 /* The tint covers the row's normal hover colour, so tinted results get a ring instead. */
 .nav-item:hover .search-result[class*="search-prio-"],
-.search-result[class*="search-prio-"]:focus-visible {
+.nav-item:hover .search-result.search-done,
+.search-result[class*="search-prio-"]:focus-visible,
+.search-result.search-done:focus-visible {
 	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
@@ -833,6 +851,13 @@ input[type="date"].input {
 	color: var(--text-muted);
 	border-bottom: 1px solid var(--border);
 }
+/* Column headers carry their stage's colour; keyed by column id (see COLUMNS in app.config). */
+.column-in_progress .column-header {
+	background: var(--progress-soft);
+}
+.column-completed .column-header {
+	background: var(--done-soft);
+}
 .column-header .count {
 	font-weight: 500;
 	font-variant-numeric: tabular-nums;
@@ -889,6 +914,10 @@ input[type="date"].input {
 }
 .column-list .card.card-prio-high {
 	background: linear-gradient(var(--prio-high-soft), var(--prio-high-soft)) var(--bg);
+}
+/* Done beats priority: every card in the last column is green. */
+.column-completed .column-list .card {
+	background: linear-gradient(var(--done-soft), var(--done-soft)) var(--bg);
 }
 .card.selected {
 	border-color: var(--accent);

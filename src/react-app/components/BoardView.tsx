@@ -141,7 +141,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 				<DragDropContext onDragStart={() => setDropping(false)} onDragEnd={onDragEnd}>
 					<div className="columns">
 						{COLUMNS.map((col) => (
-							<section className="column" key={col.id}>
+							<section className={`column column-${col.id}`} key={col.id}>
 								<header className="column-header">
 									<span>{col.label}</span>
 									<span className="count">{byColumn[col.id].length}</span>

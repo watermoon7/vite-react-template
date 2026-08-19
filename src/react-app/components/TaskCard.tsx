@@ -1,10 +1,7 @@
 /** Compact card shown in a column. */
-import { COLUMNS, PRIORITIES } from "../../../app.config";
-import type { Task } from "../../shared/types";
+import { PRIORITIES } from "../../../app.config";
+import { DONE_COLUMN, type Task } from "../../shared/types";
 import { formatDueDate, isOverdue, userName } from "../format";
-
-/** The last column counts as done; overdue styling is suppressed there. */
-const DONE_COLUMN = COLUMNS[COLUMNS.length - 1].id;
 
 /** The meta line under a task's title: priority, due date (red when overdue), assignee, notes marker. */
 export function TaskMeta({ task }: { task: Task }) {
