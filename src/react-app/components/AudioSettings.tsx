@@ -145,7 +145,7 @@ export function AudioSettings() {
 				<span className="label">Microphone sensitivity</span>
 				<div className="row">
 					<input
-						className="voice-range audio-range"
+						className="audio-range"
 						type="range"
 						min={VOICE.micGain.min}
 						max={VOICE.micGain.max}

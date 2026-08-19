@@ -1247,9 +1247,11 @@ input[type="date"].input {
 	max-width: 100%;
 	padding: 6px 8px;
 }
+/* Fixed width so the slider and the meter below it read as one column. */
 .audio-range {
 	width: 220px;
 	flex: 0 0 auto;
+	accent-color: var(--accent);
 }
 .audio-value {
 	font-variant-numeric: tabular-nums;
