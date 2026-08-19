@@ -673,6 +673,9 @@ input[type="date"].input {
 	background: var(--hover);
 	color: var(--text);
 }
+.icon-pencil {
+	display: block;
+}
 .nav-delete:hover {
 	background: var(--danger-soft);
 	color: var(--danger);

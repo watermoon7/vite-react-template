@@ -67,6 +67,29 @@ function NameInput({ placeholder, initialValue = "", onSubmit, onCancel }: NameI
 	);
 }
 
+/**
+ * Rename glyph, drawn inline rather than taken from a font: the Unicode pencils (✎ ✏ ✐)
+ * come out heavy and differ by machine, this one matches the × stroke and is the same everywhere.
+ */
+function PencilIcon() {
+	return (
+		<svg
+			className="icon-pencil"
+			width="14"
+			height="14"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+		</svg>
+	);
+}
+
 export function Sidebar({ route, boards, tasks, channels, messages, user, live }: Props) {
 	const [query, setQuery] = useState("");
 	const results = useMemo(() => searchTasks(query, boards, tasks), [query, boards, tasks]);
@@ -157,7 +180,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 					aria-label={`Rename ${noun} ${item.name}`}
 					onClick={() => setRenaming({ kind, id: item.id })}
 				>
-					✎
+					<PencilIcon />
 				</button>
 				<ConfirmButton
 					className="nav-action nav-delete"
