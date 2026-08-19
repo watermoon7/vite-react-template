@@ -21,16 +21,19 @@
 	--danger: #b42318;
 	--danger-soft: #fdecea;
 	--ok: #16a34a;
-	--prio-low: #6b7280;
+	--prio-low: #6a5acd;
 	--prio-medium: #b45309;
 	--prio-high: #b42318;
 	/* Card backgrounds by priority: a wash of the priority colour, light enough for --text. */
-	--prio-low-soft: #eaeef3;
+	--prio-low-soft: #e9e4fa;
 	--prio-medium-soft: #fdf0d9;
 	--prio-high-soft: #fde8e6;
 	/* Column headers (In progress / Completed) and cards in the last column. */
 	--progress-soft: #d3e5fb;
 	--done-soft: #d7f3e2;
+	/* Column bodies: a lighter tint of the header colour. */
+	--progress-faint: #e9f1fc;
+	--done-faint: #e6f6ee;
 	/* Solid controls (primary button, selected segment) invert the surface. Reusing
 	   --text as a background would make them white-on-white in the dark theme. */
 	--inverse-bg: #171717;
@@ -66,14 +69,16 @@
 		--danger: #f28b82;
 		--danger-soft: #3a1f1d;
 		--ok: #4ade80;
-		--prio-low: #9ca3af;
+		--prio-low: #b8a9f7;
 		--prio-medium: #e0a458;
 		--prio-high: #f28b82;
-		--prio-low-soft: #23272e;
+		--prio-low-soft: #2a2543;
 		--prio-medium-soft: #302818;
 		--prio-high-soft: #35211f;
 		--progress-soft: #1c2b44;
 		--done-soft: #1a3329;
+		--progress-faint: #151d2c;
+		--done-faint: #13211b;
 		--inverse-bg: #ececec;
 		--inverse-bg-hover: #ffffff;
 		--inverse-fg: #121212;
@@ -99,14 +104,16 @@
 	--danger: #f28b82;
 	--danger-soft: #3a1f1d;
 	--ok: #4ade80;
-	--prio-low: #9ca3af;
+	--prio-low: #b8a9f7;
 	--prio-medium: #e0a458;
 	--prio-high: #f28b82;
-	--prio-low-soft: #23272e;
+	--prio-low-soft: #2a2543;
 	--prio-medium-soft: #302818;
 	--prio-high-soft: #35211f;
 	--progress-soft: #1c2b44;
 	--done-soft: #1a3329;
+	--progress-faint: #151d2c;
+	--done-faint: #13211b;
 	--inverse-bg: #ececec;
 	--inverse-bg-hover: #ffffff;
 	--inverse-fg: #121212;
@@ -156,14 +163,16 @@
 	--danger: #b91c1c;
 	--danger-soft: rgba(239, 68, 68, 0.12);
 	--ok: #059669;
-	--prio-low: #64748b;
+	--prio-low: #6b4fd8;
 	--prio-medium: #b45309;
 	--prio-high: #b91c1c;
-	--prio-low-soft: rgba(100, 116, 139, 0.14);
+	--prio-low-soft: rgba(139, 92, 246, 0.16);
 	--prio-medium-soft: rgba(217, 119, 6, 0.16);
 	--prio-high-soft: rgba(220, 38, 38, 0.13);
 	--progress-soft: rgba(59, 130, 246, 0.2);
 	--done-soft: rgba(16, 185, 129, 0.2);
+	--progress-faint: rgba(59, 130, 246, 0.08);
+	--done-faint: rgba(16, 185, 129, 0.09);
 	--inverse-bg: #4f46e5;
 	--inverse-bg-hover: #4338ca;
 	--inverse-fg: #ffffff;
@@ -209,14 +218,16 @@
 		--danger: #fca5a5;
 		--danger-soft: rgba(248, 113, 113, 0.16);
 		--ok: #34d399;
-		--prio-low: #94a3b8;
+		--prio-low: #c4b5fd;
 		--prio-medium: #fbbf24;
 		--prio-high: #fca5a5;
-		--prio-low-soft: rgba(148, 163, 184, 0.14);
+		--prio-low-soft: rgba(167, 139, 250, 0.2);
 		--prio-medium-soft: rgba(251, 191, 36, 0.14);
 		--prio-high-soft: rgba(248, 113, 113, 0.17);
 		--progress-soft: rgba(96, 165, 250, 0.2);
 		--done-soft: rgba(52, 211, 153, 0.18);
+		--progress-faint: rgba(96, 165, 250, 0.08);
+		--done-faint: rgba(52, 211, 153, 0.07);
 		--inverse-bg: #6366f1;
 		--inverse-bg-hover: #4f46e5;
 		--inverse-fg: #ffffff;
@@ -255,14 +266,16 @@
 	--danger: #fca5a5;
 	--danger-soft: rgba(248, 113, 113, 0.16);
 	--ok: #34d399;
-	--prio-low: #94a3b8;
+	--prio-low: #c4b5fd;
 	--prio-medium: #fbbf24;
 	--prio-high: #fca5a5;
-	--prio-low-soft: rgba(148, 163, 184, 0.14);
+	--prio-low-soft: rgba(167, 139, 250, 0.2);
 	--prio-medium-soft: rgba(251, 191, 36, 0.14);
 	--prio-high-soft: rgba(248, 113, 113, 0.17);
 	--progress-soft: rgba(96, 165, 250, 0.2);
 	--done-soft: rgba(52, 211, 153, 0.18);
+	--progress-faint: rgba(96, 165, 250, 0.08);
+	--done-faint: rgba(52, 211, 153, 0.07);
 	--inverse-bg: #6366f1;
 	--inverse-bg-hover: #4f46e5;
 	--inverse-fg: #ffffff;
@@ -857,6 +870,14 @@ input[type="date"].input {
 }
 .column-completed .column-header {
 	background: var(--done-soft);
+}
+/* …and their bodies a lighter wash of the same colour, laid over the column surface so the
+   Glass columns stay translucent. */
+.column-in_progress {
+	background: linear-gradient(var(--progress-faint), var(--progress-faint)) var(--surface-2);
+}
+.column-completed {
+	background: linear-gradient(var(--done-faint), var(--done-faint)) var(--surface-2);
 }
 .column-header .count {
 	font-weight: 500;
