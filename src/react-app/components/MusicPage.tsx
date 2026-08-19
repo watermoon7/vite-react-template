@@ -13,7 +13,7 @@ import { audioFilesOf, readAudioDuration, titleFromFilename } from "../audioFile
 import { unzoomDragStyle } from "../dragScale";
 import { formatBytes, formatDuration, userName } from "../format";
 import { resumeListening, setVolume, sharedPositionMs, songDurationMs, useMusic } from "../music";
-import { deleteSong, renameSong, reorderSongs, sendPlayback, uploadSong } from "../store";
+import { deleteSong, renameSong, reorderSongs, seekPlayback, sendPlayback, uploadSong } from "../store";
 import { ConfirmButton } from "./Confirm";
 import { GripIcon, PauseIcon, PlayIcon, PlusIcon, SkipIcon } from "./icons";
 
@@ -105,9 +105,17 @@ function Transport({ song, playback, hasSongs }: TransportProps) {
 	const durationMs = songDurationMs(song);
 	const positionMs = song ? sharedPositionMs(playback, durationMs) : 0;
 	const seekMax = durationMs ?? 0;
+	/**
+	 * Where the thumb has been dragged to, while it is being dragged. The bar is otherwise
+	 * drawn from shared state, and a control whose value is decided elsewhere cannot be
+	 * dragged: every move would be undone by the next state to arrive.
+	 */
+	const [scrubMs, setScrubMs] = useState<number | null>(null);
 
-	function onSeek(e: ChangeEvent<HTMLInputElement>): void {
-		void sendPlayback({ action: "seek", positionMs: Number(e.target.value) });
+	function commitScrub(): void {
+		const target = scrubMs;
+		setScrubMs(null);
+		if (target !== null) void seekPlayback(target);
 	}
 
 	return (
@@ -170,17 +178,20 @@ function Transport({ song, playback, hasSongs }: TransportProps) {
 			</div>
 
 			<div className="music-seek">
-				<span className="music-time muted small">{formatDuration(positionMs)}</span>
+				<span className="music-time muted small">{formatDuration(scrubMs ?? positionMs)}</span>
 				<input
 					className="music-range"
 					type="range"
 					min={0}
 					max={seekMax}
 					step={1000}
-					value={Math.min(positionMs, seekMax)}
+					value={scrubMs ?? Math.min(positionMs, seekMax)}
 					disabled={durationMs === null}
 					aria-label="Position in the song"
-					onChange={onSeek}
+					onChange={(e: ChangeEvent<HTMLInputElement>) => setScrubMs(Number(e.target.value))}
+					onPointerUp={commitScrub}
+					onKeyUp={commitScrub}
+					onBlur={commitScrub}
 				/>
 				<span className="music-time muted small">{durationMs === null ? "–:––" : formatDuration(durationMs)}</span>
 			</div>

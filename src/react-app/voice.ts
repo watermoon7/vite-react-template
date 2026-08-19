@@ -78,6 +78,13 @@ let makingOffer = false;
 let ignoreOffer = false;
 let polite = false;
 let bufferedSignals: Signal[] = [];
+/**
+ * Which pairing of the two tabs the current peer connection was built for — the two join
+ * timestamps. A rejoin (another tab, or a socket that reconnected) produces a new one, and
+ * both browsers see the same change, so both rebuild rather than one talking to a tab that
+ * has gone.
+ */
+let sessionKey: string | null = null;
 /** Serialises signal handling: each step awaits, and SDP must be applied in order. */
 let signalChain: Promise<void> = Promise.resolve();
 let iceRestartTimer: number | undefined;
@@ -136,14 +143,26 @@ function sendSignal(signal: Signal): void {
 	sendSocket({ t: "voice-signal", to: peerId, data: signal });
 }
 
-/** Plays the peer's audio. Called from the join click, so autoplay permission is already given. */
+/**
+ * Plays the peer's audio. Called from the join click, so autoplay permission is already
+ * given, and again for each arriving track — hence the guard: two overlapping play() calls
+ * on one element abort the first, which is not a failure worth showing anyone.
+ */
 function playRemoteAudio(): void {
 	if (!remoteAudio) {
 		remoteAudio = new Audio();
 		remoteAudio.autoplay = true;
 		remoteAudio.srcObject = remoteStream;
+		// In the document rather than detached: the element then behaves like any other
+		// media element for autoplay policy, devtools and the browser's own media controls.
+		remoteAudio.hidden = true;
+		document.body.append(remoteAudio);
 	}
-	remoteAudio.play().catch(reportError);
+	if (!remoteAudio.paused) return;
+	remoteAudio.play().catch((err: unknown) => {
+		if (err instanceof Error && err.name === "AbortError") return; // superseded by a later play()
+		reportError(err);
+	});
 }
 
 /** Builds the peer connection and puts the microphone on it, which starts the negotiation. */
@@ -196,8 +215,17 @@ function scheduleIceRestart(connection: RTCPeerConnection): void {
 	}, VOICE.iceRestartAfterMs);
 }
 
-function ensurePeer(): void {
-	if (pc || !state.joined || !peerMember()) return;
+/** Identifies the current pairing of tabs, or null unless both users are in the room. */
+function currentSessionKey(): string | null {
+	const mine = state.room.find((member) => member.user === me);
+	const peer = state.room.find((member) => member.user !== me);
+	if (!mine || !peer) return null;
+	return `${mine.joinedAt}:${peer.joinedAt}`;
+}
+
+function ensurePeer(key: string): void {
+	if (pc || !state.joined) return;
+	sessionKey = key;
 	pc = createPeer();
 	const queued = bufferedSignals;
 	bufferedSignals = [];
@@ -222,6 +250,7 @@ function teardownPeer(): void {
 	makingOffer = false;
 	ignoreOffer = false;
 	bufferedSignals = [];
+	sessionKey = null;
 	setState({ remoteScreen: null });
 }
 
@@ -284,8 +313,9 @@ export async function joinRoom(): Promise<void> {
 	}
 	setState({ joined: true, muted: false });
 	playRemoteAudio();
-	ensurePeer();
-	refreshStatus();
+	// The server answers a join with a room broadcast, and that is what builds the connection —
+	// only then are both tabs' join timestamps known, and they are what the peering is keyed on.
+	onRoom(state.room);
 }
 
 function stopMicrophone(): void {
@@ -363,15 +393,17 @@ export function stopScreenShare(): void {
 
 // ---------- Server events ----------
 
-/** Reacts to the room the server pushed: connect to a peer who is there, drop one who is not. */
+/**
+ * Reacts to the room the server pushed: connect to a peer who is there, drop one who is not,
+ * and rebuild from scratch when either side rejoined — the old connection is then talking to
+ * a tab that has already been evicted. Rebuilding drops a screen share; it has to be
+ * renegotiated onto the new connection anyway, and restarting it is one click.
+ */
 function onRoom(room: VoiceMember[]): void {
 	setState({ room });
-	if (!state.joined) {
-		refreshStatus();
-		return;
-	}
-	if (peerMember()) ensurePeer();
-	else teardownPeer();
+	const key = state.joined ? currentSessionKey() : null;
+	if (pc && key !== sessionKey) teardownPeer();
+	if (key) ensurePeer(key);
 	refreshStatus();
 }
 

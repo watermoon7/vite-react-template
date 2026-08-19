@@ -18,6 +18,7 @@ import type {
 } from "../shared/types";
 import { api, ApiError } from "./api";
 import { recordStateTransition } from "./backups";
+import { serverNow } from "./clock";
 import { pruneDrafts } from "./drafts";
 import { bindSocketTransport, emitSocketEvent } from "./socket";
 import { showLoginStyle } from "./style";
@@ -334,6 +335,21 @@ export async function reorderSongs(ids: string[]): Promise<boolean> {
 /** Sends a play/pause/seek/next/previous to the shared playback state. */
 export async function sendPlayback(command: PlaybackCommand): Promise<boolean> {
 	return (await mutate(() => api.playback(command), (s) => s)) !== null;
+}
+
+/**
+ * Moves the shared position. Applied optimistically, like a drag: the scrub bar is drawn
+ * from this state, so waiting for the round trip would snap the thumb back to where the
+ * song was before letting it jump forward again.
+ */
+export async function seekPlayback(positionMs: number): Promise<boolean> {
+	if (!Number.isFinite(positionMs) || positionMs < 0) throw new Error("positionMs must be a non-negative number");
+	const data = state.data;
+	if (!data || data.playback.songId === null) return false;
+	setState({
+		data: { ...data, playback: { ...data.playback, positionMs, updatedAtMs: serverNow() } },
+	});
+	return sendPlayback({ action: "seek", positionMs });
 }
 
 export async function restoreBackup(data: BackupData): Promise<RestoreResult | null> {

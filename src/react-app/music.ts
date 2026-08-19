@@ -27,8 +27,11 @@ export interface MusicState {
 	error: string | null;
 }
 
+/** This browser's saved volume, or full volume on a browser that has never set one. */
 function readStoredVolume(): number {
-	const raw = Number(localStorage.getItem(CLIENT.storageKeys.musicVolume));
+	const stored = localStorage.getItem(CLIENT.storageKeys.musicVolume);
+	if (stored === null) return 1;
+	const raw = Number(stored);
 	return Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 1;
 }
 
@@ -70,6 +73,10 @@ export function songDurationMs(song: Song | null): number | null {
 const audio = new Audio();
 audio.preload = "auto";
 audio.volume = state.volume;
+// In the document rather than detached, so the element behaves like any other media element
+// for the autoplay policy, devtools and the browser's own media controls.
+audio.hidden = true;
+document.body.append(audio);
 
 /** Song currently loaded into the element, so the src is only rewritten when it really changes. */
 let loadedSongId: string | null = null;
