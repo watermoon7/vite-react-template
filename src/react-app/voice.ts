@@ -352,7 +352,8 @@ export function setMuted(muted: boolean): void {
  */
 export async function startScreenShare(): Promise<void> {
 	if (state.sharing) return;
-	if (!pc) {
+	const connection = pc;
+	if (!connection) {
 		reportError(new Error("Nobody to share with — wait until the other person joins the room"));
 		return;
 	}
@@ -364,8 +365,13 @@ export async function startScreenShare(): Promise<void> {
 		if (!(err instanceof Error) || err.name !== "NotAllowedError") reportError(err);
 		return;
 	}
+	// The picker can sit open for a while; the other person may have left in the meantime.
+	if (pc !== connection) {
+		for (const track of stream.getTracks()) track.stop();
+		return;
+	}
 	screenStream = stream;
-	screenSenders = stream.getTracks().map((track) => pc!.addTrack(track, stream));
+	screenSenders = stream.getTracks().map((track) => connection.addTrack(track, stream));
 	// The browser's own "Stop sharing" bar ends the track without telling the app anything else.
 	for (const track of stream.getVideoTracks()) track.addEventListener("ended", () => stopScreenShare());
 	sendSocket({ t: "voice-screen", sharing: true });

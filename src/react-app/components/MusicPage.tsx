@@ -111,11 +111,25 @@ function Transport({ song, playback, hasSongs }: TransportProps) {
 	 * dragged: every move would be undone by the next state to arrive.
 	 */
 	const [scrubMs, setScrubMs] = useState<number | null>(null);
+	const commitTimer = useRef<number | undefined>(undefined);
+	useEffect(() => () => window.clearTimeout(commitTimer.current), []);
 
-	function commitScrub(): void {
-		const target = scrubMs;
-		setScrubMs(null);
-		if (target !== null) void seekPlayback(target);
+	/**
+	 * Sends the seek and hands the bar back to the shared state, unless the thumb has moved
+	 * on again in the meantime.
+	 */
+	function commitScrub(target: number): void {
+		window.clearTimeout(commitTimer.current);
+		void seekPlayback(target).finally(() =>
+			setScrubMs((current) => (current === target ? null : current)),
+		);
+	}
+
+	/** Moves the thumb now and sends the seek once it has come to rest. */
+	function scrubTo(target: number): void {
+		setScrubMs(target);
+		window.clearTimeout(commitTimer.current);
+		commitTimer.current = window.setTimeout(() => commitScrub(target), MUSIC.seekCommitDebounceMs);
 	}
 
 	return (
@@ -188,10 +202,9 @@ function Transport({ song, playback, hasSongs }: TransportProps) {
 					value={scrubMs ?? Math.min(positionMs, seekMax)}
 					disabled={durationMs === null}
 					aria-label="Position in the song"
-					onChange={(e: ChangeEvent<HTMLInputElement>) => setScrubMs(Number(e.target.value))}
-					onPointerUp={commitScrub}
-					onKeyUp={commitScrub}
-					onBlur={commitScrub}
+					onChange={(e: ChangeEvent<HTMLInputElement>) => scrubTo(Number(e.target.value))}
+					onPointerUp={() => scrubMs !== null && commitScrub(scrubMs)}
+					onBlur={() => scrubMs !== null && commitScrub(scrubMs)}
 				/>
 				<span className="music-time muted small">{durationMs === null ? "–:––" : formatDuration(durationMs)}</span>
 			</div>

@@ -149,6 +149,12 @@ export const MUSIC = {
 	driftSeekMs: 1_500,
 	/** Playback rate nudge used to absorb drift between the tolerance and the seek threshold. */
 	driftRateNudge: 0.02,
+	/**
+	 * Quiet period after the last move of the seek bar before the seek is sent. Each seek is
+	 * a shared-state change, and the reply to an earlier one would rewind the bar under the
+	 * user's finger; one command per gesture avoids that as well as the traffic.
+	 */
+	seekCommitDebounceMs: 180,
 	/** Seconds skipped by the back/forward buttons. */
 	skipSeconds: 10,
 	/** Pressing "previous" this far into a song restarts it instead of going back one. */
