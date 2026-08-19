@@ -14,6 +14,7 @@ import { unzoomDragStyle } from "../dragScale";
 import { replaceRoute } from "../router";
 import { createTask, renameBoard, reorderTasks } from "../store";
 import { compareTasks, getTaskSort, setTaskSort, subscribeTaskSort, type TaskSort } from "../taskSort";
+import { useDropStart } from "../useDropStart";
 import { EditableTitle } from "./EditableTitle";
 import { Segmented } from "./Segmented";
 import { TaskCard } from "./TaskCard";
@@ -49,9 +50,7 @@ interface DraggableCardProps {
 
 /** One card inside a Draggable; reports the moment its drop animation begins. */
 function DraggableCard({ task, selected, provided, snapshot, onSelect, onDropStart }: DraggableCardProps) {
-	useEffect(() => {
-		if (snapshot.isDropAnimating) onDropStart();
-	}, [snapshot.isDropAnimating, onDropStart]);
+	useDropStart(snapshot, onDropStart);
 	return (
 		<div
 			ref={provided.innerRef}
