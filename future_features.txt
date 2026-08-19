@@ -1,15 +1,58 @@
 DONT ADD THESE YET
 
-1- sort tasks by priority, date, name
-2- search by task fields. for example, allow to search by priority or date
-3- replace the annoying browser confirmation pop-ups and add custom pop-ups by the button being pressed
-4- make the login page glass theme by default
-5- move the bottom most widget on the left panel to the bottom. specifically the green dot followed by "User . Live"
-6- color the background of the tasks boxes to match their priority
-7- the light mode (on both themes) are quite bad. certain widgets, for example tasks and columns, merge into each other visually as they are almost completely white
-8- allow renaming of boards and channels
-9- remove the hashtag in front of the channel names
-10- rename the "Channels" category on the left pannel to something less discordy
-11- rename the "Classic" theme to "Erect" and rename the glass theme to "Glassid" (for the funny)
-12- on the calendar, when you hover over a specific day, change the background color of that day slightly
-13- on the calendar, when you click on a task, the link to the task board underlines the 'in' word just before it. fix this and make the link more visible (i.e. by changing the color and/or boldening it)
+Target platforms for everything below: Chrome, Edge and Brave (Chromium) on Fedora, Windows and macOS.
+Desktop only. Firefox is not a target.
+
+1- Passive voice call (a Discord-style voice room)
+   One always-existing voice room for the two of us, not a phone-style call. Either user can join or
+   leave whenever they like; nobody is "called" and nothing rings. The left panel shows the room with
+   who is currently in it (a live presence indicator next to each name), so if one of us is sitting in
+   the room the other can see that and hop in. Joining asks for the microphone once, then shows an
+   in-call strip with mute/unmute, leave, and connection state; leaving (or closing the tab, or losing
+   the connection) removes you from the room immediately for the other person too.
+   How it works: room membership is ordinary shared state in the Durable Object, pushed over the
+   existing WebSocket like everything else, and it is also what drives the presence indicator. When
+   both of us are in the room the two browsers open a direct 1:1 WebRTC audio connection; the DO only
+   relays the connection setup (SDP offers/answers and ICE candidates) between the two sockets. WebRTC
+   media is DTLS-SRTP end to end, so a direct call is encrypted with nothing extra to build; a TURN
+   relay (Cloudflare Realtime TURN, credentials minted by the Worker) is needed as a fallback for
+   networks that block direct connections, and it only ever sees encrypted packets. Only one tab per
+   user can be in the room at a time. Same browser/OS targets as above.
+
+2- Shared music player, in sync for everyone signed in
+   A playlist both of us can see and manage: upload songs (drag and drop or a file picker, with a
+   progress bar and a sensible size cap), reorder them, rename them, delete them, and see who added
+   what. One shared player: play, pause, seek, next/previous, and the current position are the same
+   for every signed-in user, so pressing play here starts it there. Anyone who opens the app while a
+   song is playing sees it playing and joins at the right position after one click ("join listening" —
+   browsers refuse to start audio without a click).
+   How it works: song files are too big for the Durable Object's SQLite (2 MB per row; songs are
+   3-10 MB), so they go in a Cloudflare R2 bucket (10 GB free), uploaded through and served by the
+   Worker with HTTP Range support so seeking works. The playlist itself (title, order, uploader, R2
+   key, duration) is a normal table in the DO like boards and tasks. Playback is one small piece of
+   shared state — which song, playing or paused, and the position at a given server time — pushed to
+   every client; each client works out where the song should be from the server clock (offset
+   estimated over the existing WebSocket ping) and nudges its own player when it drifts more than
+   ~200 ms. Expect the two players to be within roughly a tenth to a third of a second of each other:
+   fine for listening together, not sample-accurate. MP3, AAC, Opus/OGG and FLAC all play on the
+   target browsers.
+
+3- Screen sharing inside the voice room, with audio
+   While in the voice room either user can share their whole screen, a window, or a browser tab; the
+   other sees it in the main pane (with a proper large view, and a way to stop sharing / stop
+   watching). Audio should come with the share where the platform allows it (see below), on top of
+   the microphones already in the call. Targets: Chrome, Edge and Brave on Fedora, Windows and macOS.
+   How it works: getDisplayMedia() adds a video (and, where available, audio) track to the same
+   WebRTC connection as the voice call, so this depends on item 1 being done first. On Fedora with
+   Wayland the picker is the system PipeWire/portal dialog. Roughly 2-5 Mbps for a 1080p share,
+   fine over a direct connection.
+   What "with audio" can mean on each platform, in-browser, today (this is a browser/OS limit, not
+   something the app can change):
+     - Windows, Chromium: browser-tab audio and whole-screen system audio both work.
+     - macOS, Chromium: browser-tab audio works; whole-screen system audio only on Chrome 141+ with
+       macOS 14.2+ (older Chrome or macOS: tab audio only).
+     - Fedora, Chromium: browser-tab audio only. System/application audio cannot be captured by the
+       browser; the only route is an OS-level loopback device (PipeWire/PulseAudio loopback) fed in
+       as the microphone, which is per-machine setup outside the app.
+   Note Brave's WebRTC IP-leak protection can stop direct connections; the TURN fallback from
+   item 1 covers it.
