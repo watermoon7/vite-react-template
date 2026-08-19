@@ -658,6 +658,9 @@ input[type="date"].input {
 	width: 24px;
 	height: 24px;
 	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	border-radius: var(--radius);
 	color: var(--text-muted);
 	font-size: 16px;
