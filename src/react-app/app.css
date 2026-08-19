@@ -710,19 +710,42 @@ input[type="date"].input {
 .search-summary {
 	padding: 8px 8px 0;
 }
-/* Result text wraps to two lines instead of the single ellipsised line a nav link uses. */
+/* A search result is a mini task card: one ellipsised line of description, then the same
+   meta line as a board card, on a wash of the task's priority colour. */
 .nav-link.search-result {
+	display: block;
+	padding: 6px 8px;
+	margin: 2px 0;
+	border-radius: var(--radius);
 	white-space: normal;
-	text-overflow: clip;
-	display: -webkit-box;
-	-webkit-line-clamp: 2;
-	-webkit-box-orient: vertical;
-	overflow: hidden;
-	overflow-wrap: anywhere;
 	line-height: 1.35;
 }
-.search-in-notes {
+.search-title {
+	display: block;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.search-title.placeholder {
 	color: var(--text-muted);
+	font-style: italic;
+}
+.search-result .card-meta {
+	margin-top: 2px;
+}
+.search-result.search-prio-low {
+	background: var(--prio-low-soft);
+}
+.search-result.search-prio-medium {
+	background: var(--prio-medium-soft);
+}
+.search-result.search-prio-high {
+	background: var(--prio-high-soft);
+}
+/* The tint covers the row's normal hover colour, so tinted results get a ring instead. */
+.nav-item:hover .search-result[class*="search-prio-"],
+.search-result[class*="search-prio-"]:focus-visible {
+	box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
 /* ---------- Board ---------- */
