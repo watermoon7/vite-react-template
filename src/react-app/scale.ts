@@ -24,9 +24,14 @@ function nearestStep(value: number): number {
 	return best;
 }
 
-/** Writes the scale to the document so CSS can use it. */
+/**
+ * Writes the scale to the document so CSS can use it. The inverse is published too, for the
+ * one element that must escape the zoom (see the drag placeholder rule in app.css).
+ */
 function applyToDocument(value: number): void {
+	if (!(value > 0)) throw new Error(`invalid scale: ${value}`);
 	document.documentElement.style.setProperty("--app-scale", String(value));
+	document.documentElement.style.setProperty("--app-scale-inverse", String(1 / value));
 }
 
 function readStored(): number {

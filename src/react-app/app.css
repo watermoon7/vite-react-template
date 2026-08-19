@@ -35,6 +35,7 @@
 	--inverse-fg: #ffffff;
 	--shadow-color: rgba(0, 0, 0, 0.12);
 	--app-scale: 1;
+	--app-scale-inverse: 1;
 	--radius: 3px;
 	--sidebar-width: 232px;
 	/* The sidebar widens while a search query is active; task text needs the room. */
@@ -786,12 +787,25 @@ input[type="date"].input {
 	font-weight: 500;
 	font-variant-numeric: tabular-nums;
 }
+/* The list is the drop zone and its own scroll container. @hello-pangea/dnd mixes the
+   list's getBoundingClientRect() (viewport pixels) with its scrollWidth/scrollHeight and
+   scrollTop (CSS pixels) when it works out where cards can be dropped, so under the app's
+   zoom the drop zone shrinks (scale > 1) or spills over its neighbours (scale < 1). The
+   list therefore cancels the root zoom on itself — making its CSS pixels viewport pixels
+   — and its cards zoom back up. Its own paddings are scaled by hand to compensate. The
+   placeholder dnd leaves where the lifted card was is deliberately not re-zoomed: dnd
+   sizes it with inline viewport-pixel lengths. The lifted card's own inline lengths are
+   corrected in dragScale.ts. */
 .column-list {
 	flex: 1;
 	overflow-y: auto;
 	overscroll-behavior: contain; /* stops scroll chaining into the page in Safari and Firefox */
-	padding: 8px 8px 40px;
+	zoom: var(--app-scale-inverse, 1);
+	padding: calc(8px * var(--app-scale)) calc(8px * var(--app-scale)) calc(40px * var(--app-scale));
 	transition: background-color 120ms;
+}
+.column-list > :not([data-rfd-placeholder-context-id]) {
+	zoom: var(--app-scale);
 }
 .column-list.over {
 	background: var(--accent-soft);

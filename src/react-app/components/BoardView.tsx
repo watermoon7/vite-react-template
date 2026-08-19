@@ -3,6 +3,7 @@ import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-p
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { COLUMNS } from "../../../app.config";
 import type { Board, ColumnId, ColumnOrder, Task } from "../../shared/types";
+import { unzoomDragStyle } from "../dragScale";
 import { replaceRoute } from "../router";
 import { createTask, renameBoard, reorderTasks } from "../store";
 import { TaskCard } from "./TaskCard";
@@ -156,6 +157,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 															ref={p.innerRef}
 															{...p.draggableProps}
 															{...p.dragHandleProps}
+															style={unzoomDragStyle(p.draggableProps.style)}
 															className={
 																"card" +
 																(task.priority ? ` card-prio-${task.priority}` : "") +
