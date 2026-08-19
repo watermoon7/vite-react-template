@@ -172,3 +172,45 @@ export function GripIcon({ size = 14 }: IconProps) {
 		</svg>
 	);
 }
+
+/** A magnifying glass, for the panel search toggles. */
+export function SearchIcon({ size = 14 }: IconProps) {
+	assertSize(size);
+	return (
+		<svg
+			className="icon"
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2.25"
+			strokeLinecap="round"
+			aria-hidden="true"
+		>
+			<circle cx="10.5" cy="10.5" r="6.5" />
+			<path d="M15.5 15.5L21 21" />
+		</svg>
+	);
+}
+
+/** A tick, for confirming an inline edit. */
+export function CheckIcon({ size = 14 }: IconProps) {
+	assertSize(size);
+	return (
+		<svg
+			className="icon"
+			width={size}
+			height={size}
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2.25"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M4 12.5l5 5L20 6.5" />
+		</svg>
+	);
+}

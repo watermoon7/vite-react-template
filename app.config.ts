@@ -102,6 +102,19 @@ export const CHANNELS = {
 	groupWindowMinutes: 5,
 	/** The log keeps following new messages while scrolled within this many pixels of the bottom. */
 	stickToBottomPx: 40,
+	/**
+	 * "X is typing…" indicator. A keystroke sends at most one "typing" frame per
+	 * `typingPingIntervalMs`; silence for `typingIdleMs` withdraws it. A remote indicator is
+	 * dropped after `typingExpiryMs` even if the withdrawal never arrives (a closed tab, a
+	 * dropped socket), so it must be comfortably longer than the ping interval.
+	 */
+	typingPingIntervalMs: 2_000,
+	typingIdleMs: 4_000,
+	typingExpiryMs: 7_000,
+	/** How often expired indicators are swept away, while any are showing. */
+	typingSweepMs: 1_000,
+	/** How long a message jumped to from chat search stays highlighted, in ms. */
+	jumpHighlightMs: 2_000,
 };
 
 /**
@@ -204,6 +217,15 @@ export const CLIENT = {
 		minQueryLength: 1,
 		/** Most results listed at once; anything beyond this is reported as a count. */
 		maxResults: 10,
+	},
+	/** Sidebar chat search. Also client-side: every message is already in memory. */
+	chatSearch: {
+		/** Shortest trimmed query that triggers a search. */
+		minQueryLength: 1,
+		/** Most results listed at once; anything beyond this is reported as a count. */
+		maxResults: 20,
+		/** Characters of a message shown in a result, around the first matching term. */
+		snippetLength: 120,
 	},
 	/** localStorage keys. */
 	storageKeys: {

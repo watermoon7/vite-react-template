@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS channels (
 	id TEXT PRIMARY KEY, name TEXT NOT NULL, position INTEGER NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS messages (
 	id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, author TEXT NOT NULL, text TEXT NOT NULL DEFAULT '',
-	image_id TEXT, created_at TEXT NOT NULL);
+	image_id TEXT, created_at TEXT NOT NULL, edited_at TEXT);
 CREATE INDEX IF NOT EXISTS messages_channel_idx ON messages (channel_id);
 CREATE TABLE IF NOT EXISTS files (
 	id TEXT PRIMARY KEY, mime TEXT NOT NULL, bytes BLOB NOT NULL, created_at TEXT NOT NULL, created_by TEXT NOT NULL);
@@ -99,6 +99,7 @@ type MessageRow = {
 	text: string;
 	image_id: string | null;
 	created_at: string;
+	edited_at: string | null;
 };
 
 type SongRow = {
@@ -160,6 +161,7 @@ function rowToMessage(r: MessageRow): Message {
 		text: r.text,
 		imageId: r.image_id,
 		createdAt: r.created_at,
+		editedAt: r.edited_at,
 	};
 }
 
@@ -316,9 +318,26 @@ export class KanbanStore extends DurableObject<Env> {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);
 		this.sql = ctx.storage.sql;
-		ctx.blockConcurrencyWhile(async () => this.sql.exec(SCHEMA));
+		ctx.blockConcurrencyWhile(async () => {
+			this.sql.exec(SCHEMA);
+			this.migrate();
+		});
 		// Answer keep-alive pings without waking the object.
 		ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
+	}
+
+	/**
+	 * Adds columns introduced after their table was first created. `CREATE TABLE IF NOT EXISTS`
+	 * leaves an existing table alone, so a database from an earlier build needs them added here.
+	 * Idempotent: every step is guarded by what the table already has.
+	 */
+	private migrate(): void {
+		const columns = this.sql
+			.exec<{ name: string }>("PRAGMA table_info(messages)")
+			.toArray()
+			.map((row) => row.name);
+		if (columns.length === 0) throw new Error("messages table missing after schema");
+		if (!columns.includes("edited_at")) this.sql.exec("ALTER TABLE messages ADD COLUMN edited_at TEXT");
 	}
 
 	// ---------- WebSocket (fetch is only used for the upgrade) ----------
@@ -371,6 +390,11 @@ export class KanbanStore extends DurableObject<Env> {
 				return;
 			case "voice-signal":
 				this.relaySignal(attachment, message.to, message.data);
+				return;
+			case "typing":
+				if (typeof message.channelId === "string" && typeof message.typing === "boolean") {
+					this.relayTyping(attachment.user, message.channelId, message.typing);
+				}
 				return;
 			default:
 				return; // unknown command from a newer client
@@ -482,6 +506,20 @@ export class KanbanStore extends DurableObject<Env> {
 		for (const ws of this.ctx.getWebSockets(to as UserId)) {
 			if (!readAttachment(ws)?.voice) continue;
 			send(ws, { type: "voice-signal", from: from.user, data });
+		}
+	}
+
+	/**
+	 * Tells the other user that this one started or stopped typing in a channel. Nothing is
+	 * stored: an indicator that outlives its socket is worse than one that is briefly missing,
+	 * and the receiving client expires it on a timer anyway.
+	 */
+	private relayTyping(from: UserId, channelId: string, typing: boolean): void {
+		if (channelId.length === 0 || channelId.length > 64) return;
+		for (const ws of this.ctx.getWebSockets()) {
+			const attachment = readAttachment(ws);
+			if (!attachment || attachment.user === from) continue;
+			send(ws, { type: "typing", user: from, channelId, typing });
 		}
 	}
 
@@ -698,6 +736,24 @@ export class KanbanStore extends DurableObject<Env> {
 			);
 		});
 		return { state, messageId: id };
+	}
+
+	/**
+	 * Replaces the text of one of the caller's own messages. The attached image, the author
+	 * and the creation time are left alone, so an edit never changes where the message sits
+	 * in the log.
+	 */
+	editMessage(user: UserId, id: string, text: string): AppState {
+		if (text.length === 0) throw new Error("empty message");
+		const now = new Date().toISOString();
+		return this.commit(user, () => {
+			const rows = this.sql
+				.exec<{ author: UserId }>("SELECT author FROM messages WHERE id = ?", id)
+				.toArray();
+			if (rows.length === 0) throw new Error(NOT_FOUND);
+			if (rows[0].author !== user) throw new Error(FORBIDDEN);
+			this.sql.exec("UPDATE messages SET text = ?, edited_at = ? WHERE id = ?", text, now, id);
+		});
 	}
 
 	/** Deletes one of the caller's own messages (and its image). */

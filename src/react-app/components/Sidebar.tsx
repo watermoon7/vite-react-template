@@ -1,6 +1,6 @@
 /**
- * Left panel: task search, boards and chats (channels; create/rename/delete/switch), the
- * voice room, calendar, music, settings and the connection status.
+ * Left panel: boards and chats (channels; create/rename/delete/switch) — each with its own
+ * search — the voice room, calendar, music, settings and the connection status.
  */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
@@ -13,12 +13,14 @@ import {
 	type Task,
 	type UserId,
 } from "../../shared/types";
-import { userName } from "../format";
+import { CHAT_FILTER_HELP, searchMessages } from "../chatSearch";
+import { formatMessageTime, userName } from "../format";
 import { navigate, routeToHash, type Route } from "../router";
 import { FILTER_HELP, searchTasks } from "../search";
 import { createBoard, createChannel, deleteBoard, deleteChannel, renameBoard, renameChannel } from "../store";
+import { useTypingChannels } from "../typing";
 import { ConfirmButton } from "./Confirm";
-import { PencilIcon, PlusIcon } from "./icons";
+import { PencilIcon, PlusIcon, SearchIcon } from "./icons";
 import { TaskMeta } from "./TaskCard";
 import { VoiceRoom } from "./VoiceRoom";
 
@@ -33,6 +35,9 @@ interface Props {
 	user: UserId;
 	live: boolean;
 }
+
+/** Which panel's search box is open, and what has been typed into it. */
+type SearchState = { panel: "boards" | "chats"; query: string } | null;
 
 interface NameInputProps {
 	placeholder: string;
@@ -83,15 +88,91 @@ function NameInput({ placeholder, initialValue = "", onSubmit, onCancel }: NameI
 	);
 }
 
+interface SearchBoxProps {
+	/** Names the box for assistive technology and fills its placeholder. */
+	label: string;
+	/** What the query syntax matches, as the box's tooltip. */
+	help: string;
+	query: string;
+	onQuery: (query: string) => void;
+	/** Closes the box: Escape on an empty query, or the × button. */
+	onClose: () => void;
+	/** Moves focus into the results (ArrowDown). */
+	onEnterResults: () => void;
+}
+
+/**
+ * The search input a panel's magnifier opens. Escape clears the query, and closes the box
+ * once it is empty; ArrowDown steps into the results.
+ */
+function SearchBox({ label, help, query, onQuery, onClose, onEnterResults }: SearchBoxProps) {
+	function onKey(e: KeyboardEvent<HTMLInputElement>): void {
+		// Escape must still reach the board's own Escape handler (which closes the open task)
+		// when there is nothing here left to close.
+		if (e.key === "Escape") {
+			e.preventDefault();
+			e.stopPropagation();
+			if (query) onQuery("");
+			else onClose();
+			return;
+		}
+		if (e.key === "ArrowDown") {
+			e.preventDefault();
+			onEnterResults();
+		}
+	}
+
+	return (
+		<div className="sidebar-search" role="search">
+			<input
+				className="input search-input"
+				type="search"
+				aria-label={label}
+				placeholder={label}
+				title={help}
+				spellCheck={false}
+				autoComplete="off"
+				autoFocus
+				value={query}
+				onChange={(e) => onQuery(e.target.value)}
+				onKeyDown={onKey}
+			/>
+			<button className="icon-btn search-clear" aria-label={`Close ${label.toLowerCase()}`} onClick={onClose}>
+				×
+			</button>
+		</div>
+	);
+}
+
+/** "3 matches" / "Showing 10 of 42 matches" / "No matches", for a result list's header. */
+function summarise(shown: number, total: number, noun: string): string {
+	if (total === 0) return `No matching ${noun}`;
+	if (shown < total) return `Showing ${shown} of ${total} matches`;
+	return total === 1 ? "1 match" : `${total} matches`;
+}
+
 export function Sidebar({ route, boards, tasks, channels, messages, songs, playback, user, live }: Props) {
-	const [query, setQuery] = useState("");
-	const results = useMemo(() => searchTasks(query, boards, tasks), [query, boards, tasks]);
+	/** One search at a time: opening a panel's box closes the other's, query and all. */
+	const [search, setSearch] = useState<SearchState>(null);
+	const boardQuery = search?.panel === "boards" ? search.query : "";
+	const chatQuery = search?.panel === "chats" ? search.query : "";
+	const taskResults = useMemo(() => searchTasks(boardQuery, boards, tasks), [boardQuery, boards, tasks]);
+	const chatResults = useMemo(
+		() => searchMessages(chatQuery, channels, messages),
+		[chatQuery, channels, messages],
+	);
+	const typingIn = useTypingChannels();
 	const resultList = useRef<HTMLDivElement>(null);
 	const [creatingBoard, setCreatingBoard] = useState(false);
 	const [creatingChannel, setCreatingChannel] = useState(false);
 	/** Board or channel whose name is being edited in place, if any. */
 	const [renaming, setRenaming] = useState<{ kind: "board" | "channel"; id: string } | null>(null);
 	const isRenaming = (kind: "board" | "channel", id: string) => renaming?.kind === kind && renaming.id === id;
+
+	/** Opens a panel's search box, or closes it when it is the one already open. */
+	function toggleSearch(panel: "boards" | "chats"): void {
+		setSearch((current) => (current?.panel === panel ? null : { panel, query: "" }));
+	}
 
 	async function submitNewBoard(name: string): Promise<void> {
 		setCreatingBoard(false);
@@ -105,25 +186,10 @@ export function Sidebar({ route, boards, tasks, channels, messages, songs, playb
 		if (id) navigate({ kind: "channel", channelId: id });
 	}
 
-	/** The rendered result links, in visual order. */
+	/** The rendered result links, in visual order. Both searches render the same link class. */
 	function resultLinks(): HTMLAnchorElement[] {
 		if (!resultList.current) return [];
 		return Array.from(resultList.current.querySelectorAll<HTMLAnchorElement>("a.search-result"));
-	}
-
-	function onSearchKey(e: KeyboardEvent<HTMLInputElement>): void {
-		// Escape clears the query, but only when there is one: with an empty box it must
-		// still reach the board's own Escape handler, which closes the open task.
-		if (e.key === "Escape" && query) {
-			e.preventDefault();
-			e.stopPropagation();
-			setQuery("");
-			return;
-		}
-		if (e.key === "ArrowDown") {
-			e.preventDefault();
-			resultLinks()[0]?.focus();
-		}
 	}
 
 	/** Arrow keys move between results; Escape returns to the input. */
@@ -191,6 +257,36 @@ export function Sidebar({ route, boards, tasks, channels, messages, songs, playb
 		);
 	}
 
+	/** A panel heading with its search toggle and its "new…" button. */
+	function heading(title: string, panel: "boards" | "chats", onCreate: () => void, createLabel: string): ReactNode {
+		return (
+			<div className="sidebar-heading">
+				<span>{title}</span>
+				<span className="sidebar-heading-actions">
+					<button
+						className={"icon-btn" + (search?.panel === panel ? " active" : "")}
+						title={`Search ${panel}`}
+						aria-label={`Search ${panel}`}
+						aria-pressed={search?.panel === panel}
+						onClick={() => toggleSearch(panel)}
+					>
+						<SearchIcon />
+					</button>
+					<button className="icon-btn" title={createLabel} aria-label={createLabel} onClick={onCreate}>
+						<PlusIcon />
+					</button>
+				</span>
+			</div>
+		);
+	}
+
+	/** "Theo is typing" for a chat row, or null when nobody is. */
+	function typingLabel(channelId: string): string | null {
+		const users = typingIn.get(channelId);
+		if (!users || users.length === 0) return null;
+		return `${users.map(userName).join(" and ")} ${users.length === 1 ? "is" : "are"} typing`;
+	}
+
 	const isBoard = (id: string) => route.kind === "board" && route.boardId === id;
 	const isChannel = (id: string) => route.kind === "channel" && route.channelId === id;
 	// Only shown while something is actually playing, so the row stays one line the rest of the time.
@@ -200,162 +296,185 @@ export function Sidebar({ route, boards, tasks, channels, messages, songs, playb
 		<nav className="sidebar">
 			<div className="sidebar-brand">Kanban</div>
 
-			<div className="sidebar-search" role="search">
-				<input
-					className="input search-input"
-					type="search"
-					aria-label="Search tasks"
-					placeholder="Search tasks"
-					title={FILTER_HELP}
-					spellCheck={false}
-					autoComplete="off"
-					value={query}
-					onChange={(e) => setQuery(e.target.value)}
-					onKeyDown={onSearchKey}
-				/>
-				{query && (
-					<button className="icon-btn search-clear" aria-label="Clear search" onClick={() => setQuery("")}>
-						×
-					</button>
+			<section className="sidebar-section" aria-label="Boards">
+				{heading("Boards", "boards", () => setCreatingBoard(true), "New board")}
+				{search?.panel === "boards" && (
+					<SearchBox
+						label="Search tasks"
+						help={FILTER_HELP}
+						query={search.query}
+						onQuery={(query) => setSearch({ panel: "boards", query })}
+						onClose={() => setSearch(null)}
+						onEnterResults={() => resultLinks()[0]?.focus()}
+					/>
 				)}
-			</div>
-
-			{results ? (
-				<div ref={resultList} onKeyDown={onResultsKey}>
-					<p className="search-summary muted small" role="status">
-						{results.total === 0
-							? "No matching tasks"
-							: results.shown < results.total
-								? `Showing ${results.shown} of ${results.total} matches`
-								: results.total === 1
-									? "1 match"
-									: `${results.total} matches`}
-					</p>
-					{results.groups.map((group) => (
-						<div key={group.board.id}>
-							<div className="sidebar-heading">
-								<span>{group.board.name}</span>
-							</div>
-							<ul className="nav-list" aria-label={group.board.name}>
-								{group.hits.map((hit) => (
-									<li key={hit.task.id} className="nav-item">
-										<a
-											className={
-												"nav-link search-result" +
-												(hit.task.priority ? ` search-prio-${hit.task.priority}` : "") +
-												(hit.task.status === DONE_COLUMN ? " search-done" : "")
-											}
-											href={routeToHash({
-												kind: "board",
-												boardId: group.board.id,
-												taskId: hit.task.id,
-											})}
-										>
-											<span className={"search-title" + (hit.task.description.trim() ? "" : " placeholder")}>
-												{hit.task.description.trim() || "Untitled task"}
-											</span>
-											<TaskMeta task={hit.task} />
-										</a>
-									</li>
-								))}
-							</ul>
-						</div>
-					))}
-				</div>
-			) : (
-				<>
-					<section className="sidebar-section" aria-label="Boards">
-						<div className="sidebar-heading">
-							<span>Boards</span>
-							<button className="icon-btn" title="New board" aria-label="New board" onClick={() => setCreatingBoard(true)}>
-								<PlusIcon />
-							</button>
-						</div>
-						<ul className="nav-list">
-							{boards.map((b) => (
-								<li key={b.id} className={"nav-item" + (isBoard(b.id) ? " active" : "")}>
-									{isRenaming("board", b.id) ? (
-										<NameInput
-											placeholder="Board name"
-											initialValue={b.name}
-											onSubmit={(name) => {
-												setRenaming(null);
-												void renameBoard(b.id, name);
-											}}
-											onCancel={() => setRenaming(null)}
-										/>
-									) : (
-										<>
-											<a href={routeToHash({ kind: "board", boardId: b.id })} className="nav-link" title={b.name}>
-												{b.name}
+				{taskResults ? (
+					<div ref={resultList} onKeyDown={onResultsKey}>
+						<p className="search-summary muted small" role="status">
+							{summarise(taskResults.shown, taskResults.total, "tasks")}
+						</p>
+						{taskResults.groups.map((group) => (
+							<div key={group.board.id}>
+								<div className="sidebar-heading">
+									<span>{group.board.name}</span>
+								</div>
+								<ul className="nav-list" aria-label={group.board.name}>
+									{group.hits.map((hit) => (
+										<li key={hit.task.id} className="nav-item">
+											<a
+												className={
+													"nav-link search-result" +
+													(hit.task.priority ? ` search-prio-${hit.task.priority}` : "") +
+													(hit.task.status === DONE_COLUMN ? " search-done" : "")
+												}
+												href={routeToHash({
+													kind: "board",
+													boardId: group.board.id,
+													taskId: hit.task.id,
+												})}
+											>
+												<span className={"search-title" + (hit.task.description.trim() ? "" : " placeholder")}>
+													{hit.task.description.trim() || "Untitled task"}
+												</span>
+												<TaskMeta task={hit.task} />
 											</a>
-											{rowActions("board", b, () => void removeBoard(b), taskCount(b))}
-										</>
-									)}
-								</li>
-							))}
-							{creatingBoard && (
-								<li className="nav-item">
+										</li>
+									))}
+								</ul>
+							</div>
+						))}
+					</div>
+				) : (
+					<ul className="nav-list">
+						{boards.map((b) => (
+							<li key={b.id} className={"nav-item" + (isBoard(b.id) ? " active" : "")}>
+								{isRenaming("board", b.id) ? (
 									<NameInput
 										placeholder="Board name"
-										onSubmit={(name) => void submitNewBoard(name)}
-										onCancel={() => setCreatingBoard(false)}
+										initialValue={b.name}
+										onSubmit={(name) => {
+											setRenaming(null);
+											void renameBoard(b.id, name);
+										}}
+										onCancel={() => setRenaming(null)}
 									/>
-								</li>
-							)}
-							{boards.length === 0 && !creatingBoard && <li className="nav-empty">No boards yet</li>}
-						</ul>
-					</section>
+								) : (
+									<>
+										<a href={routeToHash({ kind: "board", boardId: b.id })} className="nav-link" title={b.name}>
+											{b.name}
+										</a>
+										{rowActions("board", b, () => void removeBoard(b), taskCount(b))}
+									</>
+								)}
+							</li>
+						))}
+						{creatingBoard && (
+							<li className="nav-item">
+								<NameInput
+									placeholder="Board name"
+									onSubmit={(name) => void submitNewBoard(name)}
+									onCancel={() => setCreatingBoard(false)}
+								/>
+							</li>
+						)}
+						{boards.length === 0 && !creatingBoard && <li className="nav-empty">No boards yet</li>}
+					</ul>
+				)}
+			</section>
 
-					<section className="sidebar-section" aria-label="Chats">
-						<div className="sidebar-heading">
-							<span>Chats</span>
-							<button
-								className="icon-btn"
-								title="New chat"
-								aria-label="New chat"
-								onClick={() => setCreatingChannel(true)}
-							>
-								<PlusIcon />
-							</button>
-						</div>
-						<ul className="nav-list">
-							{channels.map((c) => (
-								<li key={c.id} className={"nav-item" + (isChannel(c.id) ? " active" : "")}>
-									{isRenaming("channel", c.id) ? (
-										<NameInput
-											placeholder="Chat name"
-											initialValue={c.name}
-											onSubmit={(name) => {
-												setRenaming(null);
-												void renameChannel(c.id, name);
-											}}
-											onCancel={() => setRenaming(null)}
-										/>
-									) : (
-										<>
-											<a href={routeToHash({ kind: "channel", channelId: c.id })} className="nav-link" title={c.name}>
-												{c.name}
+			<section className="sidebar-section" aria-label="Chats">
+				{heading("Chats", "chats", () => setCreatingChannel(true), "New chat")}
+				{search?.panel === "chats" && (
+					<SearchBox
+						label="Search messages"
+						help={CHAT_FILTER_HELP}
+						query={search.query}
+						onQuery={(query) => setSearch({ panel: "chats", query })}
+						onClose={() => setSearch(null)}
+						onEnterResults={() => resultLinks()[0]?.focus()}
+					/>
+				)}
+				{chatResults ? (
+					<div ref={resultList} onKeyDown={onResultsKey}>
+						<p className="search-summary muted small" role="status">
+							{summarise(chatResults.shown, chatResults.total, "messages")}
+						</p>
+						{chatResults.groups.map((group) => (
+							<div key={group.channel.id}>
+								<div className="sidebar-heading">
+									<span>{group.channel.name}</span>
+								</div>
+								<ul className="nav-list" aria-label={group.channel.name}>
+									{group.hits.map((hit) => (
+										<li key={hit.message.id} className="nav-item">
+											<a
+												className="nav-link search-result chat-result"
+												href={routeToHash({
+													kind: "channel",
+													channelId: group.channel.id,
+													messageId: hit.message.id,
+												})}
+											>
+												<span className="chat-result-head">
+													<span className="chat-result-author">{userName(hit.message.author)}</span>
+													<span className="muted small">{formatMessageTime(hit.message.createdAt)}</span>
+												</span>
+												{hit.snippet && <span className="chat-result-text">{hit.snippet}</span>}
+												{hit.hasImage && <span className="chat-result-tag">Image</span>}
 											</a>
-											{rowActions("channel", c, () => void removeChannel(c), messageCount(c))}
-										</>
-									)}
-								</li>
-							))}
-							{creatingChannel && (
-								<li className="nav-item">
+										</li>
+									))}
+								</ul>
+							</div>
+						))}
+					</div>
+				) : (
+					<ul className="nav-list">
+						{channels.map((c) => {
+							const typing = typingLabel(c.id);
+							return (
+							<li key={c.id} className={"nav-item" + (isChannel(c.id) ? " active" : "")}>
+								{isRenaming("channel", c.id) ? (
 									<NameInput
 										placeholder="Chat name"
-										onSubmit={(name) => void submitNewChannel(name)}
-										onCancel={() => setCreatingChannel(false)}
+										initialValue={c.name}
+										onSubmit={(name) => {
+											setRenaming(null);
+											void renameChannel(c.id, name);
+										}}
+										onCancel={() => setRenaming(null)}
 									/>
-								</li>
-							)}
-							{channels.length === 0 && !creatingChannel && <li className="nav-empty">No chats yet</li>}
-						</ul>
-					</section>
-				</>
-			)}
+								) : (
+									<>
+										<a href={routeToHash({ kind: "channel", channelId: c.id })} className="nav-link" title={c.name}>
+											{c.name}
+											{typing && (
+												<span className="typing-dots" title={typing} aria-label={typing}>
+													<i />
+													<i />
+													<i />
+												</span>
+											)}
+										</a>
+										{rowActions("channel", c, () => void removeChannel(c), messageCount(c))}
+									</>
+								)}
+							</li>
+							);
+						})}
+						{creatingChannel && (
+							<li className="nav-item">
+								<NameInput
+									placeholder="Chat name"
+									onSubmit={(name) => void submitNewChannel(name)}
+									onCancel={() => setCreatingChannel(false)}
+								/>
+							</li>
+						)}
+						{channels.length === 0 && !creatingChannel && <li className="nav-empty">No chats yet</li>}
+					</ul>
+				)}
+			</section>
 
 			<VoiceRoom route={route} user={user} />
 

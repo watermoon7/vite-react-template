@@ -46,6 +46,8 @@ export interface Message {
 	text: string;
 	imageId: string | null;
 	createdAt: string;
+	/** When the author last edited the text, or null if they never did. */
+	editedAt: string | null;
 }
 
 /** One song in the shared playlist. The audio itself lives in R2 under `id`. */
@@ -116,6 +118,8 @@ export type ClientMessage =
 	| { t: "voice-join" }
 	| { t: "voice-leave" }
 	| { t: "voice-mute"; muted: boolean }
+	/** "I am / am no longer typing in this channel." Relayed to the other user, never stored. */
+	| { t: "typing"; channelId: string; typing: boolean }
 	| { t: "voice-screen"; sharing: boolean }
 	/** WebRTC signalling (SDP or ICE) for the other user; the server only relays it. */
 	| { t: "voice-signal"; to: UserId; data: unknown };
@@ -126,6 +130,8 @@ export type ServerMessage =
 	| { type: "time"; c: number; s: number }
 	| { type: "voice"; room: VoiceMember[] }
 	| { type: "voice-signal"; from: UserId; data: unknown }
+	/** The other user started or stopped typing in a channel. */
+	| { type: "typing"; user: UserId; channelId: string; typing: boolean }
 	/** This tab was removed from the room because the same user joined from another tab. */
 	| { type: "voice-evicted" };
 

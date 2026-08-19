@@ -147,6 +147,7 @@ export default function App() {
 						channel={channel}
 						messages={data.messages.filter((m) => m.channelId === channel.id)}
 						user={store.user}
+						jumpTo={route.kind === "channel" ? (route.messageId ?? null) : null}
 					/>
 				)}
 				{route.kind === "calendar" && (

@@ -60,6 +60,7 @@ export const api = {
 	/** `image` is a base64 data URL of an accepted image type, or undefined for a text-only message. */
 	postMessage: (channelId: string, text: string, image?: string) =>
 		request<{ state: AppState; messageId: string }>("POST", `/api/channels/${channelId}/messages`, { text, image }),
+	editMessage: (id: string, text: string) => request<AppState>("PATCH", `/api/messages/${id}`, { text }),
 	deleteMessage: (id: string) => request<AppState>("DELETE", `/api/messages/${id}`),
 	restore: (data: BackupData) => request<{ state: AppState; result: RestoreResult }>("POST", "/api/restore", data),
 	/** ICE servers for the voice call: a TURN relay when one is configured, STUN otherwise. */

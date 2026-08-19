@@ -287,6 +287,12 @@ export async function postMessage(channelId: string, text: string, image?: strin
 	return (await mutate(() => api.postMessage(channelId, text, image), (r) => r.state)) !== null;
 }
 
+/** Replaces the text of one of the caller's own messages. */
+export async function editMessage(id: string, text: string): Promise<boolean> {
+	if (text.trim().length === 0) throw new Error("text is required");
+	return (await mutate(() => api.editMessage(id, text.trim()), (s) => s)) !== null;
+}
+
 export async function deleteMessage(id: string): Promise<boolean> {
 	return (await mutate(() => api.deleteMessage(id), (s) => s)) !== null;
 }
