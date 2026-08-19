@@ -225,11 +225,8 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 										<a
 											className={
 												"nav-link search-result" +
-												(hit.task.status === DONE_COLUMN
-													? " search-done"
-													: hit.task.priority
-														? ` search-prio-${hit.task.priority}`
-														: "")
+												(hit.task.priority ? ` search-prio-${hit.task.priority}` : "") +
+												(hit.task.status === DONE_COLUMN ? " search-done" : "")
 											}
 											href={routeToHash({
 												kind: "board",
