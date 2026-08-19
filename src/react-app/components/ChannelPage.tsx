@@ -16,6 +16,7 @@ import { firstImageFile, prepareImage } from "../images";
 import { splitLinks } from "../linkify";
 import { deleteMessage, postMessage, renameChannel } from "../store";
 import { ConfirmButton } from "./Confirm";
+import { PlusIcon } from "./icons";
 import { EditableTitle } from "./EditableTitle";
 
 interface Props {
@@ -187,7 +188,7 @@ function Composer({ channel, onPosted }: ComposerProps) {
 					disabled={busy}
 					onClick={() => fileInput.current?.click()}
 				>
-					+
+					<PlusIcon size={16} />
 				</button>
 				<textarea
 					ref={textarea}

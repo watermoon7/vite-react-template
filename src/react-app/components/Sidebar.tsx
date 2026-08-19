@@ -6,6 +6,7 @@ import { navigate, routeToHash, type Route } from "../router";
 import { FILTER_HELP, searchTasks } from "../search";
 import { createBoard, createChannel, deleteBoard, deleteChannel, renameBoard, renameChannel } from "../store";
 import { ConfirmButton } from "./Confirm";
+import { PencilIcon, PlusIcon } from "./icons";
 import { TaskMeta } from "./TaskCard";
 
 interface Props {
@@ -64,29 +65,6 @@ function NameInput({ placeholder, initialValue = "", onSubmit, onCancel }: NameI
 			onKeyDown={onKey}
 			onBlur={submit}
 		/>
-	);
-}
-
-/**
- * Rename glyph, drawn inline rather than taken from a font: the Unicode pencils (✎ ✏ ✐)
- * come out heavy and differ by machine, this one matches the × stroke and is the same everywhere.
- */
-function PencilIcon() {
-	return (
-		<svg
-			className="icon-pencil"
-			width="14"
-			height="14"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-		>
-			<path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-		</svg>
 	);
 }
 
@@ -276,7 +254,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 						<div className="sidebar-heading">
 							<span>Boards</span>
 							<button className="icon-btn" title="New board" aria-label="New board" onClick={() => setCreatingBoard(true)}>
-								+
+								<PlusIcon />
 							</button>
 						</div>
 						<ul className="nav-list">
@@ -324,7 +302,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 								aria-label="New chat"
 								onClick={() => setCreatingChannel(true)}
 							>
-								+
+								<PlusIcon />
 							</button>
 						</div>
 						<ul className="nav-list">
