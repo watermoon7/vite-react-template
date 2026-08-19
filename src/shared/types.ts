@@ -84,6 +84,8 @@ export interface RestoreResult {
 
 export const USER_IDS: readonly UserId[] = USERS.map((u) => u.id);
 export const COLUMN_IDS: readonly ColumnId[] = COLUMNS.map((c) => c.id);
+/** The last column counts as done: its tasks are tinted green and are never overdue. */
+export const DONE_COLUMN: ColumnId = COLUMNS[COLUMNS.length - 1].id;
 export const PRIORITY_IDS: readonly Priority[] = PRIORITIES.map((p) => p.id);
 export const ASSIGNEES: readonly Assignee[] = [...USER_IDS, "both"];
 
