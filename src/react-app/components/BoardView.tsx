@@ -130,8 +130,7 @@ export function BoardView({ board, tasks, selectedId }: Props) {
 				/>
 				<span className="muted small">{tasks.length === 1 ? "1 task" : `${tasks.length} tasks`}</span>
 				<div className="board-sort">
-					<span className="muted small">Sort</span>
-					<Segmented label="Sort tasks" options={SORT_OPTIONS} value={sort} onChange={setTaskSort} />
+					<Segmented label="Sort tasks" prefix="Sort" options={SORT_OPTIONS} value={sort} onChange={setTaskSort} />
 				</div>
 				<div className="spacer" />
 				<button className="btn btn-primary" onClick={() => void addTask()}>
