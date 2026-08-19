@@ -673,7 +673,8 @@ input[type="date"].input {
 	background: var(--hover);
 	color: var(--text);
 }
-.icon-pencil {
+/* Inline SVG icons inside icon buttons: block, so the flex centring places the drawing itself. */
+.icon {
 	display: block;
 }
 .nav-delete:hover {
@@ -1183,7 +1184,6 @@ input[type="date"].input {
 	height: 30px;
 	flex-shrink: 0;
 	border: 1px solid var(--border-strong);
-	font-size: 20px;
 }
 .chat-attach:disabled {
 	color: var(--border-strong);
