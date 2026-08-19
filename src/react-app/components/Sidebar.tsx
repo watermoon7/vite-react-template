@@ -1,4 +1,4 @@
-/** Left panel: task search, boards and channels (create/delete/switch), calendar, settings, connection status. */
+/** Left panel: task search, boards and chats (channels; create/delete/switch), calendar, settings, connection status. */
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Board, Channel, Message, Task, UserId } from "../../shared/types";
 import { userName } from "../format";
@@ -130,7 +130,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 	async function removeChannel(channel: Channel): Promise<void> {
 		const count = messages.filter((m) => m.channelId === channel.id).length;
 		const detail = count === 1 ? "1 message" : `${count} messages`;
-		if (!confirm(`Delete #${channel.name} and its ${detail}?\n\nMessages and images in a channel are not backed up.`)) return;
+		if (!confirm(`Delete #${channel.name} and its ${detail}?\n\nMessages and images in a chat are not backed up.`)) return;
 		if (route.kind === "channel" && route.channelId === channel.id) navigate({ kind: "home" });
 		await deleteChannel(channel.id);
 	}
@@ -239,13 +239,13 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 						</ul>
 					</section>
 
-					<section className="sidebar-section" aria-label="Channels">
+					<section className="sidebar-section" aria-label="Chats">
 						<div className="sidebar-heading">
-							<span>Channels</span>
+							<span>Chats</span>
 							<button
 								className="icon-btn"
-								title="New channel"
-								aria-label="New channel"
+								title="New chat"
+								aria-label="New chat"
 								onClick={() => setCreatingChannel(true)}
 							>
 								+
@@ -264,8 +264,8 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 									</a>
 									<button
 										className="nav-delete"
-										title="Delete channel"
-										aria-label={`Delete channel ${c.name}`}
+										title="Delete chat"
+										aria-label={`Delete chat ${c.name}`}
 										onClick={() => void removeChannel(c)}
 									>
 										×
@@ -275,13 +275,13 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 							{creatingChannel && (
 								<li className="nav-item">
 									<NewItemInput
-										placeholder="Channel name"
+										placeholder="Chat name"
 										onSubmit={(name) => void submitNewChannel(name)}
 										onCancel={() => setCreatingChannel(false)}
 									/>
 								</li>
 							)}
-							{channels.length === 0 && !creatingChannel && <li className="nav-empty">No channels yet</li>}
+							{channels.length === 0 && !creatingChannel && <li className="nav-empty">No chats yet</li>}
 						</ul>
 					</section>
 				</>

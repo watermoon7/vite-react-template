@@ -903,12 +903,16 @@ input[type="date"].input {
 	font-weight: 600;
 	flex: 1;
 }
+/* "in <board>" after the editor title: muted connective, prominent link on the board name only. */
 .editor-context {
 	font-weight: 400;
 	color: var(--text-muted);
 }
-.editor-context:hover {
+.editor-context a {
+	font-weight: 600;
 	color: var(--accent);
+}
+.editor-context a:hover {
 	text-decoration: underline;
 }
 .editor-body {
@@ -1199,10 +1203,19 @@ input[type="date"].input {
 	background: var(--bg);
 	border-right: 1px solid var(--border);
 	border-bottom: 1px solid var(--border);
+	transition: background-color 120ms;
 }
 .cal-day.outside {
 	background: var(--surface-2);
 	color: var(--text-muted);
+}
+.cal-day:hover {
+	background: var(--hover);
+}
+/* Outside days already sit on --surface-2, which the light palette shares with --hover, so
+   they step to the next darker tone instead. */
+.cal-day.outside:hover {
+	background: var(--border);
 }
 .cal-day-num {
 	align-self: flex-start;
@@ -1491,6 +1504,12 @@ input[type="date"].input {
 	border: 3px solid transparent;
 	border-radius: 999px;
 	background-clip: padding-box;
+}
+
+/* Calendar days outside the month: this palette keeps --hover distinct from --surface-2, so
+   the ordinary hover tone works here too and stays in step with the in-month days. */
+:where([data-style="glass"]) .cal-day.outside:hover {
+	background: var(--hover);
 }
 
 /* ---------- Narrow screens ---------- */
