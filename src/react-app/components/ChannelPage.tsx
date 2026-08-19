@@ -97,15 +97,21 @@ function Composer({ channel, onPosted }: ComposerProps) {
 		if (el && el.value) el.setSelectionRange(el.value.length, el.value.length);
 	}, []);
 
-	// Grow with the content up to the CSS max-height, then scroll.
+	// Grow with the content up to the CSS max-height, then scroll. Scrolling is only enabled
+	// once the content really is taller than that cap: measuring is integer-rounded (and off by
+	// a pixel under the interface scale), so an "auto" overflow would show a scrollbar for a
+	// box that fits.
 	useLayoutEffect(() => {
 		const el = textarea.current;
 		if (!el) return;
 		el.style.height = "auto";
 		// scrollHeight excludes the borders, but with box-sizing: border-box the height must
-		// include them — otherwise the box is 2px short and shows a scrollbar for a single line.
+		// include them — otherwise the box is 2px short.
 		const borders = el.offsetHeight - el.clientHeight;
-		el.style.height = `${el.scrollHeight + borders}px`;
+		const needed = el.scrollHeight + borders;
+		const cap = parseFloat(getComputedStyle(el).maxHeight);
+		el.style.height = `${needed}px`;
+		el.style.overflowY = Number.isFinite(cap) && needed > cap ? "auto" : "hidden";
 	}, [text]);
 
 	async function attach(file: File | null): Promise<void> {
@@ -188,7 +194,7 @@ function Composer({ channel, onPosted }: ComposerProps) {
 					className="chat-input"
 					rows={1}
 					autoFocus
-					placeholder={`Message ${channel.name}`}
+					placeholder="Message"
 					value={text}
 					disabled={busy}
 					onChange={(e) => setText(e.target.value)}
