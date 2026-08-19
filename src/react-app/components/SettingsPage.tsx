@@ -146,7 +146,7 @@ export function SettingsPage({ user, data }: Props) {
 						<span className="label">Style</span>
 						<Segmented label="Style" options={STYLE_OPTIONS} value={style} onChange={setStyle} />
 						<p className="muted small">
-							“Glass” is a translucent look over a soft colour backdrop; “Classic” is the original flat look.
+							“Glassid” is a translucent look over a soft colour backdrop; “Erect” is the original flat look.
 							Remembered for you in this browser.
 						</p>
 					</div>

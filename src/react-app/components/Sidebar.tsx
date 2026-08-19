@@ -1,4 +1,4 @@
-/** Left panel: task search, boards and channels (create/delete/switch), calendar, settings, connection status. */
+/** Left panel: task search, boards and chats (channels; create/rename/delete/switch), calendar, settings, connection status. */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Board, Channel, Message, Task, UserId } from "../../shared/types";
 import { userName } from "../format";
@@ -147,7 +147,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 
 	/** Hover actions of a board / channel row: rename (in place) and delete (with confirmation). */
 	function rowActions(kind: "board" | "channel", item: Board | Channel, onDelete: () => void, detail: string): ReactNode {
-		const noun = kind === "board" ? "board" : "channel";
+		const noun = kind === "board" ? "board" : "chat";
 		return (
 			<>
 				<button
@@ -163,7 +163,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 					title={`Delete ${noun}`}
 					aria-label={`Delete ${noun} ${item.name}`}
 					message={`Delete “${item.name}” and its ${detail}?`}
-					detail={kind === "board" ? "A local backup is kept under Settings." : "Messages and images in a channel are not backed up."}
+					detail={kind === "board" ? "A local backup is kept under Settings." : "Messages and images in a chat are not backed up."}
 					confirmLabel="Delete"
 					danger
 					onConfirm={onDelete}
@@ -286,13 +286,13 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 						</ul>
 					</section>
 
-					<section className="sidebar-section" aria-label="Channels">
+					<section className="sidebar-section" aria-label="Chats">
 						<div className="sidebar-heading">
-							<span>Channels</span>
+							<span>Chats</span>
 							<button
 								className="icon-btn"
-								title="New channel"
-								aria-label="New channel"
+								title="New chat"
+								aria-label="New chat"
 								onClick={() => setCreatingChannel(true)}
 							>
 								+
@@ -303,7 +303,7 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 								<li key={c.id} className={"nav-item" + (isChannel(c.id) ? " active" : "")}>
 									{isRenaming("channel", c.id) ? (
 										<NameInput
-											placeholder="Channel name"
+											placeholder="Chat name"
 											initialValue={c.name}
 											onSubmit={(name) => {
 												setRenaming(null);
@@ -324,13 +324,13 @@ export function Sidebar({ route, boards, tasks, channels, messages, user, live }
 							{creatingChannel && (
 								<li className="nav-item">
 									<NameInput
-										placeholder="Channel name"
+										placeholder="Chat name"
 										onSubmit={(name) => void submitNewChannel(name)}
 										onCancel={() => setCreatingChannel(false)}
 									/>
 								</li>
 							)}
-							{channels.length === 0 && !creatingChannel && <li className="nav-empty">No channels yet</li>}
+							{channels.length === 0 && !creatingChannel && <li className="nav-empty">No chats yet</li>}
 						</ul>
 					</section>
 				</>

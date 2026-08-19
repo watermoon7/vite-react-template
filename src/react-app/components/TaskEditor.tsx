@@ -85,16 +85,12 @@ export function TaskEditor({ task, autoFocus, onClose, board }: Props) {
 				<span className="editor-title">
 					Task
 					{board && (
-						<>
-							{" "}
-							<a
-								className="editor-context"
-								href={routeToHash({ kind: "board", boardId: board.id, taskId: task.id })}
-								title="Open on its board"
-							>
-								in {board.name}
+						<span className="editor-context">
+							{" in "}
+							<a href={routeToHash({ kind: "board", boardId: board.id, taskId: task.id })} title="Open on its board">
+								{board.name}
 							</a>
-						</>
+						</span>
 					)}
 				</span>
 				<span className="save-status">

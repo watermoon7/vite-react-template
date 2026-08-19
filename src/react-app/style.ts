@@ -8,7 +8,7 @@
  * value is also stored on its own so the pre-paint script in index.html — which runs before
  * the session, and so the user, is known — can apply it without a flash.
  */
-import { CLIENT, STYLES, USERS } from "../../app.config";
+import { CLIENT, LOGIN_STYLE, STYLES, USERS } from "../../app.config";
 import { isUserId, type UserId } from "../shared/types";
 
 export type StylePreference = (typeof STYLES)[number]["id"];
@@ -17,8 +17,8 @@ type StyleChoices = Partial<Record<UserId, StylePreference>>;
 
 const APPLIED_KEY = CLIENT.storageKeys.style;
 const CHOICES_KEY = CLIENT.storageKeys.styleChoices;
-/** Shown before any user is known (first visit, login page): the first configured style. */
-const FALLBACK: StylePreference = STYLES[0].id;
+/** Shown before any user is known (first visit, login page). */
+const FALLBACK: StylePreference = LOGIN_STYLE;
 
 const listeners = new Set<() => void>();
 let current: StylePreference = FALLBACK;
@@ -105,6 +105,16 @@ export function bindStyleUser(user: UserId): void {
 	if (!isUserId(user)) throw new Error(`unknown user: ${String(user)}`);
 	boundUser = user;
 	update(resolveFor(user));
+}
+
+/**
+ * Shows the sign-in page's style. Call when the session ends or turns out to be missing;
+ * it also becomes the remembered "last applied" style, so a reload of the sign-in page
+ * paints it straight away.
+ */
+export function showLoginStyle(): void {
+	boundUser = null;
+	update(LOGIN_STYLE);
 }
 
 export function getStyle(): StylePreference {

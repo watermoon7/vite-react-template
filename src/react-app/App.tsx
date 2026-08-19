@@ -10,7 +10,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
 import { lastRoute, parseHash, routeToHash, useHash, type Route } from "./router";
 import { bootstrap, dismissError, useStore } from "./store";
-import { bindStyleUser } from "./style";
+import { bindStyleUser, showLoginStyle } from "./style";
 
 /** True when `route` points at something that exists in `data` (calendar and settings always do). */
 function routeExists(route: Route, data: AppState): boolean {
@@ -51,11 +51,12 @@ export default function App() {
 		void bootstrap();
 	}, []);
 
-	// The visual style depends on who is signed in; a layout effect applies it before the
-	// first paint of the signed-in app rather than one frame later.
+	// The visual style depends on who is signed in (the sign-in page has its own); a layout
+	// effect applies it before the first paint of the new screen rather than one frame later.
 	useLayoutEffect(() => {
 		if (store.user) bindStyleUser(store.user);
-	}, [store.user]);
+		else if (store.auth === "unauthenticated") showLoginStyle();
+	}, [store.user, store.auth]);
 
 	const data = store.data;
 	const route = useMemo(() => (data ? resolveRoute(parseHash(hash), data) : null), [hash, data]);

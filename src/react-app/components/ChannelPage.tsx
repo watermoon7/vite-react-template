@@ -83,7 +83,10 @@ function Composer({ channel, onPosted }: ComposerProps) {
 		const el = textarea.current;
 		if (!el) return;
 		el.style.height = "auto";
-		el.style.height = `${el.scrollHeight}px`;
+		// scrollHeight excludes the borders, but with box-sizing: border-box the height must
+		// include them — otherwise the box is 2px short and shows a scrollbar for a single line.
+		const borders = el.offsetHeight - el.clientHeight;
+		el.style.height = `${el.scrollHeight + borders}px`;
 	}, [text]);
 
 	async function attach(file: File | null): Promise<void> {

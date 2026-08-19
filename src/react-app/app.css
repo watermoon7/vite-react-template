@@ -5,13 +5,15 @@
    both collapse into light-dark() calls on this block alone. */
 :root {
 	--bg: #ffffff;
-	--surface-1: #f7f7f7;
-	--surface-2: #f2f2f2;
+	/* Recessed chrome (sidebar, columns) sits clearly below the white cards and page:
+	   too close to white and the layers merge, which is what the light theme used to do. */
+	--surface-1: #f3f3f3;
+	--surface-2: #ececec;
 	/* Interaction feedback. Separate from the surfaces because hover must move away from
 	   --bg (darker in light, lighter in dark) while recessed chrome moves the other way. */
-	--hover: #f2f2f2;
-	--border: #e3e3e3;
-	--border-strong: #c9c9c9;
+	--hover: #e9e9e9;
+	--border: #d9d9d9;
+	--border-strong: #b9b9b9;
 	--text: #171717;
 	--text-muted: #6f6f6f;
 	--accent: #1a56db;
@@ -22,6 +24,10 @@
 	--prio-low: #6b7280;
 	--prio-medium: #b45309;
 	--prio-high: #b42318;
+	/* Card backgrounds by priority: a wash of the priority colour, light enough for --text. */
+	--prio-low-soft: #eaeef3;
+	--prio-medium-soft: #fdf0d9;
+	--prio-high-soft: #fde8e6;
 	/* Solid controls (primary button, selected segment) invert the surface. Reusing
 	   --text as a background would make them white-on-white in the dark theme. */
 	--inverse-bg: #171717;
@@ -59,6 +65,9 @@
 		--prio-low: #9ca3af;
 		--prio-medium: #e0a458;
 		--prio-high: #f28b82;
+		--prio-low-soft: #23272e;
+		--prio-medium-soft: #302818;
+		--prio-high-soft: #35211f;
 		--inverse-bg: #ececec;
 		--inverse-bg-hover: #ffffff;
 		--inverse-fg: #121212;
@@ -87,6 +96,9 @@
 	--prio-low: #9ca3af;
 	--prio-medium: #e0a458;
 	--prio-high: #f28b82;
+	--prio-low-soft: #23272e;
+	--prio-medium-soft: #302818;
+	--prio-high-soft: #35211f;
 	--inverse-bg: #ececec;
 	--inverse-bg-hover: #ffffff;
 	--inverse-fg: #121212;
@@ -109,16 +121,20 @@
 		radial-gradient(1000px 700px at 58% 112%, rgba(244, 114, 182, 0.34), transparent 62%),
 		linear-gradient(180deg, #eef1f9 0%, #e4e8f4 100%);
 	--backdrop-color: #eaedf7;
-	--bg: rgba(255, 255, 255, 0.62);
+	/* Cards and controls are near-opaque white; the recessed surface (columns, calendar
+	   days outside the month) is a slate wash rather than more white, so the layers read
+	   as distinct instead of merging into one pale sheet. */
+	--bg: rgba(255, 255, 255, 0.8);
 	--surface-1: rgba(255, 255, 255, 0.5);
-	--surface-2: rgba(255, 255, 255, 0.28);
-	--surface-main: rgba(255, 255, 255, 0.22);
-	--hover: rgba(255, 255, 255, 0.85);
-	--card-hover: rgba(255, 255, 255, 0.86);
-	--border: rgba(15, 23, 42, 0.08);
-	--border-strong: rgba(15, 23, 42, 0.14);
-	/* Outer edge of a glass pane: a light line that reads as a lit rim. */
-	--glass-edge: rgba(255, 255, 255, 0.7);
+	--surface-2: rgba(15, 23, 42, 0.05);
+	--surface-main: rgba(255, 255, 255, 0.24);
+	--hover: rgba(255, 255, 255, 0.92);
+	--card-hover: rgba(255, 255, 255, 0.95);
+	--border: rgba(15, 23, 42, 0.1);
+	--border-strong: rgba(15, 23, 42, 0.2);
+	/* Outer edge of a glass pane. In the light theme a lit (white) rim vanishes against the
+	   pale backdrop, so the edge is a slate hairline here; the dark blocks use the lit rim. */
+	--glass-edge: rgba(15, 23, 42, 0.1);
 	--glass-highlight: rgba(255, 255, 255, 0.95);
 	/* Popovers float over other text, so they are nearly opaque; blur cannot be relied on
 	   inside an ancestor that already blurs (the sidebar). */
@@ -135,13 +151,16 @@
 	--prio-low: #64748b;
 	--prio-medium: #b45309;
 	--prio-high: #b91c1c;
+	--prio-low-soft: rgba(100, 116, 139, 0.14);
+	--prio-medium-soft: rgba(217, 119, 6, 0.16);
+	--prio-high-soft: rgba(220, 38, 38, 0.13);
 	--inverse-bg: #4f46e5;
 	--inverse-bg-hover: #4338ca;
 	--inverse-fg: #ffffff;
 	--shadow-color: rgba(30, 41, 99, 0.2);
 	--panel-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px -12px rgba(30, 41, 99, 0.25);
-	--card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px -6px rgba(30, 41, 99, 0.16);
-	--card-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.05), 0 12px 28px -8px rgba(30, 41, 99, 0.28);
+	--card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 6px 16px -6px rgba(30, 41, 99, 0.22);
+	--card-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.07), 0 12px 28px -8px rgba(30, 41, 99, 0.32);
 	--radius: 8px;
 	--radius-md: 12px;
 	--radius-lg: 16px;
@@ -183,6 +202,9 @@
 		--prio-low: #94a3b8;
 		--prio-medium: #fbbf24;
 		--prio-high: #fca5a5;
+		--prio-low-soft: rgba(148, 163, 184, 0.14);
+		--prio-medium-soft: rgba(251, 191, 36, 0.14);
+		--prio-high-soft: rgba(248, 113, 113, 0.17);
 		--inverse-bg: #6366f1;
 		--inverse-bg-hover: #4f46e5;
 		--inverse-fg: #ffffff;
@@ -224,6 +246,9 @@
 	--prio-low: #94a3b8;
 	--prio-medium: #fbbf24;
 	--prio-high: #fca5a5;
+	--prio-low-soft: rgba(148, 163, 184, 0.14);
+	--prio-medium-soft: rgba(251, 191, 36, 0.14);
+	--prio-high-soft: rgba(248, 113, 113, 0.17);
 	--inverse-bg: #6366f1;
 	--inverse-bg-hover: #4f46e5;
 	--inverse-fg: #ffffff;
@@ -788,12 +813,27 @@ input[type="date"].input {
 	border-radius: var(--radius);
 	padding: 9px 11px 8px;
 	margin-bottom: 7px;
+	/* A hairline drop shadow separates the card from the column beneath it. */
+	box-shadow: 0 1px 2px var(--shadow-color);
 	cursor: pointer;
 	-webkit-user-select: none; /* Safari shipped the unprefixed property only in 17.0 */
 	user-select: none;
 }
 .card:hover {
 	border-color: var(--border-strong);
+}
+/* Priority wash, laid over the card's own background so the translucent Glass tints stay
+   pastel rather than showing the backdrop through. Qualified with .column-list so it
+   outranks the Glass rules that repaint a card on hover and while dragging — a red card
+   should stay red throughout. */
+.column-list .card.card-prio-low {
+	background: linear-gradient(var(--prio-low-soft), var(--prio-low-soft)) var(--bg);
+}
+.column-list .card.card-prio-medium {
+	background: linear-gradient(var(--prio-medium-soft), var(--prio-medium-soft)) var(--bg);
+}
+.column-list .card.card-prio-high {
+	background: linear-gradient(var(--prio-high-soft), var(--prio-high-soft)) var(--bg);
 }
 .card.selected {
 	border-color: var(--accent);
@@ -874,12 +914,16 @@ input[type="date"].input {
 	font-weight: 600;
 	flex: 1;
 }
+/* "in <board>" after the editor title: muted connective, prominent link on the board name only. */
 .editor-context {
 	font-weight: 400;
 	color: var(--text-muted);
 }
-.editor-context:hover {
+.editor-context a {
+	font-weight: 600;
 	color: var(--accent);
+}
+.editor-context a:hover {
 	text-decoration: underline;
 }
 .editor-body {
@@ -1170,10 +1214,19 @@ input[type="date"].input {
 	background: var(--bg);
 	border-right: 1px solid var(--border);
 	border-bottom: 1px solid var(--border);
+	transition: background-color 120ms;
 }
 .cal-day.outside {
 	background: var(--surface-2);
 	color: var(--text-muted);
+}
+.cal-day:hover {
+	background: var(--hover);
+}
+/* Outside days already sit on --surface-2, which the light palette shares with --hover, so
+   they step to the next darker tone instead. */
+.cal-day.outside:hover {
+	background: var(--border);
 }
 .cal-day-num {
 	align-self: flex-start;
@@ -1449,7 +1502,7 @@ input[type="date"].input {
 }
 :where([data-style="glass"]) .card:hover {
 	background: var(--card-hover);
-	border-color: var(--glass-highlight);
+	border-color: var(--border-strong);
 	box-shadow: var(--card-shadow-hover);
 }
 :where([data-style="glass"]) .card.selected {
@@ -1461,7 +1514,7 @@ input[type="date"].input {
 }
 :where([data-style="glass"]) .card.dragging {
 	background: var(--card-hover);
-	border-color: var(--glass-highlight);
+	border-color: var(--border-strong);
 	box-shadow: 0 18px 44px -8px var(--shadow-color);
 }
 :where([data-style="glass"]) .editor {
@@ -1530,6 +1583,12 @@ input[type="date"].input {
 	border: 3px solid transparent;
 	border-radius: 999px;
 	background-clip: padding-box;
+}
+
+/* Calendar days outside the month: this palette keeps --hover distinct from --surface-2, so
+   the ordinary hover tone works here too and stays in step with the in-month days. */
+:where([data-style="glass"]) .cal-day.outside:hover {
+	background: var(--hover);
 }
 
 /* ---------- Narrow screens ---------- */

@@ -6,13 +6,20 @@
 /**
  * Visual styles offered in Settings. "classic" is the original flat look; "glass" is a
  * translucent, blurred look over a soft colour backdrop. Both follow the light/dark theme.
+ * The ids are stored in localStorage and keyed on by app.css, so only the labels are renamable.
  */
 export const STYLES = [
-	{ id: "classic", label: "Classic" },
-	{ id: "glass", label: "Glass" },
+	{ id: "classic", label: "Erect" },
+	{ id: "glass", label: "Glassid" },
 ] as const;
 
 type StyleId = (typeof STYLES)[number]["id"];
+
+/**
+ * Style of the sign-in page — shown before any user, and so their preference, is known.
+ * Duplicated as the fallback in the pre-paint script in index.html — change both together.
+ */
+export const LOGIN_STYLE: StyleId = "glass";
 
 /**
  * The two users. `passwordSecret` names the Worker secret / .dev.vars key holding that
