@@ -6,10 +6,11 @@
 /**
  * Visual styles offered in Settings. "classic" is the original flat look; "glass" is a
  * translucent, blurred look over a soft colour backdrop. Both follow the light/dark theme.
+ * The ids are stored in localStorage and keyed on by app.css, so only the labels are renamable.
  */
 export const STYLES = [
-	{ id: "classic", label: "Classic" },
-	{ id: "glass", label: "Glass" },
+	{ id: "classic", label: "Erect" },
+	{ id: "glass", label: "Glassid" },
 ] as const;
 
 type StyleId = (typeof STYLES)[number]["id"];
